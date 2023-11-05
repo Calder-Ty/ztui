@@ -1,6 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
-const Terminal = @import("./Terminal.zig");
+const terminal = @import("./terminal.zig");
 
 export fn add(a: i32, b: i32) i32 {
     return a + b;

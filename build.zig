@@ -24,12 +24,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const exe = b.addExecutable(.{
-        .name = "ztui-example",
-        .root_source_file = .{ .path = "src/example.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
+    lib.linkLibC();
 
     // This declares intent for the library to be installed into the standard
     // location when the user invokes the "install" step (the default step when
@@ -51,6 +46,21 @@ pub fn build(b: *std.Build) void {
     // This will evaluate the `test` step rather than the default, which is "install".
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&run_main_tests.step);
+
+    // Create as a module for use
+    const ztui_mod = b.createModule(.{ .source_file = .{
+        .path = "./src/main.zig",
+    } });
+
+    // Build Example for Demonstration and Testing
+    const exe = b.addExecutable(.{
+        .name = "ztui-example",
+        .root_source_file = .{ .path = "src/example.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.linkLibC();
+    exe.addModule("ztui", ztui_mod);
 
     const build_example = b.addRunArtifact(exe);
     build_example.step.dependOn(b.getInstallStep());

@@ -2,6 +2,7 @@
 //! Much inspiration taken from Crosterm-rs
 const std = @import("std");
 const keycodes = @import("./keyevents.zig");
+const event_queue = @import("./event_queue.zig");
 const io = std.io;
 const fs = std.fs;
 
@@ -15,7 +16,8 @@ pub const EventReader = struct {
     event_channel: std.event.Channel(keycodes.KeyCode),
 
     pub fn init(allocator: std.mem.Allocator) EventReader {
-        var event_buffer = std.RingBuffer.init(allocator, READER_BUF_SIZE * 4)
+        var event_buffer = std.RingBuffer.init(allocator, READER_BUF_SIZE * 4);
+        _ = event_buffer;
         return EventReader{ .allocator = allocator };
     }
 
@@ -27,25 +29,23 @@ pub const EventReader = struct {
         return .{ inbuff, n };
     }
 
-    fn name_the_func(inbuff: []u8, more: bool) {
+    fn name_the_func(inbuff: []u8, more: bool) void {
         var start = 0;
+        var more_available = more;
+        var offset = 0;
         for (inbuff, 1..) |byte, i| {
+            _ = byte;
             more_available = i < inbuff.len or more;
 
             offset = i - start;
 
-            const res = parse_event(inbuff[start..start+offset], more) catch {
+            const res = parse_event(inbuff[start .. start + offset], more) catch {
                 start = i - 1;
                 continue;
             };
-
-            if (res) 
-
-
+            _ = res;
         }
-
     }
-
 
     fn parse_event(parse_buffer: []u8, more: bool) !?keycodes.KeyCode {
         switch (parse_buffer[0]) {

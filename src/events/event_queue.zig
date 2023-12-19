@@ -4,7 +4,7 @@ const testing = std.testing;
 
 pub const Error = error{BufferFull};
 
-fn RingBuffer(comptime T: type, comptime size: usize) type {
+pub fn RingBuffer(comptime T: type, comptime size: usize) type {
     return struct {
         const Self = @This();
         buffer: [size]?T,
@@ -29,7 +29,7 @@ fn RingBuffer(comptime T: type, comptime size: usize) type {
         fn next_index(self: *Self) !usize {
             var next_val: usize = undefined;
             if (self.count + 1 > size) {
-                return error.BufferFull;
+                return Error.BufferFull;
             }
             // Loop around
             if (self.start + self.count >= size) {

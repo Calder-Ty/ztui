@@ -113,8 +113,9 @@ fn parseUtf8Char(buff: []const u8) !?u21 {
             0xC0...0xDF => 2, // 110xxxxx 10xxxxxx
             0xE0...0xEF => 3, // 1110xxxx 10xxxxxx 10xxxxxx
             0xF0...0xF7 => 4, // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-            0x80...0xBF, 0xF8...0xFF => return error.UnparseableCharacter,
+            0x80...0xBF, 0xF8...0xFF => return error.UnparseableEvent,
         };
+
         if (required_bytes > 1 and buff.len > 1) {
             for (buff[1..]) |byte| {
                 if (byte & ~@as(u8, 0b0011_1111) != 0b1000_0000) {

@@ -96,17 +96,48 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyCode {
         // 0x01...0x08, 0x0A...0x0C, 0x0E...0x1A => |c| keycodes.KeyCode.Char((c - 0x1 + 'a')),
         else => {
             // Not unreachable, this will break on any regular text input
-            unreachable;
+            const char = try parseUtf8Char(parse_buffer);
+            if (char) |c| {
+                return keycodes.KeyCode{ .Char = c };
+            }
+            return null;
         },
     }
 }
 
-// test "parse event" {
-// testing.refAllDecls(@This());
-// const input = [_]u8{ 'A', 'B', 'C' };
-// const res = try parse_event(input[0..], false);
-// try testing.expect(std.meta.eql(res.?, keycodes.KeyCode{ .Char = 'A' }));
-// }
+fn parseUtf8Char(buff: []const u8) !?u21 {
+    return std.unicode.utf8Decode(buff) catch {
+        const required_bytes: u8 = switch (buff[0]) {
+            // https://en.wikipedia.org/wiki/UTF-8#Description
+            0x00...0x7F => 1, // 0xxxxxxx
+            0xC0...0xDF => 2, // 110xxxxx 10xxxxxx
+            0xE0...0xEF => 3, // 1110xxxx 10xxxxxx 10xxxxxx
+            0xF0...0xF7 => 4, // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+            0x80...0xBF, 0xF8...0xFF => return error.UnparseableCharacter,
+        };
+        if (required_bytes > 1 and buff.len > 1) {
+            for (buff[1..]) |byte| {
+                if (byte & ~@as(u8, 0b0011_1111) != 0b1000_0000) {
+                    return error.UnparseableEvent;
+                }
+            }
+        }
+
+        if (buff.len < required_bytes) {
+            return null;
+        } else {
+            return error.UnparseableEvent;
+        }
+    };
+}
+
+test "parse event" {
+    testing.refAllDecls(@This());
+    const res = try parseEvent(&[_]u8{'A'}, false);
+    try testing.expect(std.meta.eql(res.?, keycodes.KeyCode{ .Char = 'A' }));
+    const res2 = try parseEvent(&[_]u8{ 0xf3, 0xb1, 0xab, 0x8e }, false);
+    try testing.expect(std.meta.eql(res2.?, keycodes.KeyCode{ .Char = '󱫎' }));
+}
 
 test "parse escape sequence" {
     const input = "\x1BOD";

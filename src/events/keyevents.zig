@@ -67,8 +67,8 @@ pub const KeyCode = union(KeyCodeTags) {
     F: u8,
     /// A character.
     ///
-    /// `KeyCode::Char('c')` represents `c` character, etc.
-    Char: u8,
+    /// `KeyCode::Char('c')` represents `c` unicode character, etc.
+    Char: u21,
     /// Null.
     Null,
     /// Escape key.

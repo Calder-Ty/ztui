@@ -47,7 +47,7 @@ pub const EventReader = struct {
     }
 };
 
-fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyCode {
+fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyEvent {
     switch (parse_buffer[0]) {
         0x1B => {
             if (parse_buffer.len == 1) {
@@ -55,50 +55,54 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyCode {
                     // Possible Esc sequence
                     return null;
                 } else {
-                    return keycodes.KeyCode.Esc;
+                    return keycodes.KeyEvent{
+                        .code = keycodes.KeyCode.Esc,
+                        .modifier = keycodes.KeyModifier{},
+                    };
                 }
             } else {
-                switch (parse_buffer[1]) {
-                    'O' => {
+                const code: keycodes.KeyCode = switch (parse_buffer[1]) {
+                    'O' => blk: {
                         if (parse_buffer.len == 2) {
                             return null;
                         } else {
                             switch (parse_buffer[2]) {
-                                'D' => return keycodes.KeyCode.Left,
-                                'C' => return keycodes.KeyCode.Right,
-                                'A' => return keycodes.KeyCode.Up,
-                                'B' => return keycodes.KeyCode.Down,
-                                'H' => return keycodes.KeyCode.Home,
-                                'F' => return keycodes.KeyCode.End,
+                                'D' => break :blk keycodes.KeyCode.Left,
+                                'C' => break :blk keycodes.KeyCode.Right,
+                                'A' => break :blk keycodes.KeyCode.Up,
+                                'B' => break :blk keycodes.KeyCode.Down,
+                                'H' => break :blk keycodes.KeyCode.Home,
+                                'F' => break :blk keycodes.KeyCode.End,
                                 // F1-F4
                                 'P'...'S' => |val| {
-                                    return keycodes.KeyCode{ .F = (1 + val - 'P') };
+                                    break :blk keycodes.KeyCode{ .F = (1 + val - 'P') };
                                 },
                                 else => return error.CouldNotParse,
                             }
                         }
                     },
                     // '[' => parse_csi(parse_buffer),
-                    0x1B => return keycodes.KeyCode.Esc,
+                    0x1B => keycodes.KeyCode.Esc,
                     // Not doing public events right now
                     else => {
                         return null;
                     },
-                }
+                };
+                return keycodes.KeyEvent{ .code = code, .modifier = keycodes.KeyModifier{} };
             }
         },
-        '\r' => return keycodes.KeyCode.Enter,
+        '\r' => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Enter, .modifier = keycodes.KeyModifier{} },
         // '\n' We need to hanlde this.
-        '\t' => return keycodes.KeyCode.Tab,
+        '\t' => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Tab, .modifier = keycodes.KeyModifier{} },
 
-        0x7F => return keycodes.KeyCode.Backspace,
+        0x7F => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Backspace, .modifier = keycodes.KeyModifier{} },
         // These are Control - Characters.
         // 0x01...0x08, 0x0A...0x0C, 0x0E...0x1A => |c| keycodes.KeyCode.Char((c - 0x1 + 'a')),
         else => {
             // Not unreachable, this will break on any regular text input
             const char = try parseUtf8Char(parse_buffer);
             if (char) |c| {
-                return keycodes.KeyCode{ .Char = c };
+                return keycodes.KeyEvent{ .code = keycodes.KeyCode{ .Char = c }, .modifier = keycodes.KeyModifier{} };
             }
             return null;
         },
@@ -132,16 +136,20 @@ fn parseUtf8Char(buff: []const u8) !?u21 {
     };
 }
 
-test "parse event" {
+test "parse event 'A'" {
     testing.refAllDecls(@This());
     const res = try parseEvent(&[_]u8{'A'}, false);
-    try testing.expect(std.meta.eql(res.?, keycodes.KeyCode{ .Char = 'A' }));
+    try testing.expect(std.meta.eql(res.?, keycodes.KeyEvent{ .code = keycodes.KeyCode{ .Char = 'A' }, .modifier = keycodes.KeyModifier{} }));
+}
+
+test "parse event '󱫎'" {
+    testing.refAllDecls(@This());
     const res2 = try parseEvent(&[_]u8{ 0xf3, 0xb1, 0xab, 0x8e }, false);
-    try testing.expect(std.meta.eql(res2.?, keycodes.KeyCode{ .Char = '󱫎' }));
+    try testing.expect(std.meta.eql(res2.?, keycodes.KeyEvent{ .code = keycodes.KeyCode{ .Char = '󱫎' }, .modifier = keycodes.KeyModifier{} }));
 }
 
 test "parse escape sequence" {
     const input = "\x1BOD";
     const res = try parseEvent(input[0..], false);
-    try testing.expect(std.meta.eql(res.?, keycodes.KeyCode.Left));
+    try testing.expect(std.meta.eql(res.?, keycodes.KeyEvent{ .code = keycodes.KeyCode.Left, .modifier = keycodes.KeyModifier{} }));
 }

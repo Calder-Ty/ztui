@@ -1,6 +1,22 @@
 //! Handle Keyboard Events
 //! Much inspiration taken from Crosterm-rs
 
+/// KeyModifiers is a Packed u8
+/// if the value == 0, then it is None
+pub const KeyModifier = packed struct(u8) {
+    shift: bool = false,
+    control: bool = false,
+    alt: bool = false,
+    super: bool = false,
+    hyper: bool = false,
+    meta: bool = false,
+
+    /// Reserved for future use
+    reserved_: u2 = 0,
+};
+
+pub const KeyEvent = struct { code: KeyCode, modifier: KeyModifier };
+
 /// Straight up lifted from crosterm-rs
 pub const KeyCodeTags = enum {
     Backspace,

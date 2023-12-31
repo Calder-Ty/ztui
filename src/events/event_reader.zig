@@ -49,6 +49,7 @@ pub const EventReader = struct {
 
 fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyEvent {
     switch (parse_buffer[0]) {
+        // | `ESC` | 27      | 033   | 0x1B | `\e`[*](#escape) | `^[` | Escape character           |
         0x1B => {
             if (parse_buffer.len == 1) {
                 if (more) {
@@ -95,9 +96,12 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyEvent {
         // '\n' We need to hanlde this.
         '\t' => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Tab, .modifier = keycodes.KeyModifier{} },
 
+        // | `DEL` | 127     | 177   | 0x7F | `<none>` | `<none>` | Delete character               |
         0x7F => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Delete, .modifier = keycodes.KeyModifier{} },
         // These are Control - Characters.
-        0x01...0x08, 0x0A...0x0C, 0x0E...0x1A => |c| {
+        // | `BS`  | 8       | 010   | 0x08 | `\b`     | `^H`     | Backspace                      |
+        0x08 => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Backspace, .modifier = keycodes.KeyModifier{} },
+        0x01...0x07, 0x0A...0x0C, 0x0E...0x1A => |c| {
             return keycodes.KeyEvent{
                 .code = keycodes.KeyCode{ .Char = (c - 0x1 + 'a') },
                 .modifier = keycodes.KeyModifier.control(),

@@ -1,5 +1,5 @@
-//! Handle Keyboard Events
-//! Much inspiration taken from Crosterm-rs
+//! Handle Keyboard Events using the [Kitty Keyboard protocol](https://sw.kovidgoyal.net/kitty/keyboard-protocol/#functional).
+//! Much of the implementation is translated from Crosterm-rs
 const std = @import("std");
 const keycodes = @import("keyevents.zig");
 const event_queue = @import("event_queue.zig");

@@ -67,10 +67,10 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyEvent {
                             return null;
                         } else {
                             switch (parse_buffer[2]) {
-                                'D' => break :blk keycodes.KeyCode.Left,
-                                'C' => break :blk keycodes.KeyCode.Right,
                                 'A' => break :blk keycodes.KeyCode.Up,
                                 'B' => break :blk keycodes.KeyCode.Down,
+                                'C' => break :blk keycodes.KeyCode.Right,
+                                'D' => break :blk keycodes.KeyCode.Left,
                                 'H' => break :blk keycodes.KeyCode.Home,
                                 'F' => break :blk keycodes.KeyCode.End,
                                 // F1-F4
@@ -95,9 +95,24 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyEvent {
         // '\n' We need to hanlde this.
         '\t' => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Tab, .modifier = keycodes.KeyModifier{} },
 
-        0x7F => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Backspace, .modifier = keycodes.KeyModifier{} },
+        0x7F => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Delete, .modifier = keycodes.KeyModifier{} },
         // These are Control - Characters.
-        // 0x01...0x08, 0x0A...0x0C, 0x0E...0x1A => |c| keycodes.KeyCode.Char((c - 0x1 + 'a')),
+        0x01...0x08, 0x0A...0x0C, 0x0E...0x1A => |c| {
+            return keycodes.KeyEvent{
+                .code = keycodes.KeyCode{ .Char = (c - 0x1 + 'a') },
+                .modifier = keycodes.KeyModifier.control(),
+            };
+        },
+        0x1C...0x1F => |c| {
+            return keycodes.KeyEvent{
+                .code = keycodes.KeyCode{ .Char = (c - 0x1 + '4') },
+                .modifier = keycodes.KeyModifier.control(),
+            };
+        },
+        0x0 => return keycodes.KeyEvent{
+            .code = keycodes.KeyCode{ .Char = ' ' },
+            .modifier = keycodes.KeyModifier.control(),
+        },
         else => {
             // Not unreachable, this will break on any regular text input
             const char = try parseUtf8Char(parse_buffer);

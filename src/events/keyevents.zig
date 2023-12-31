@@ -13,6 +13,30 @@ pub const KeyModifier = packed struct(u8) {
 
     /// Reserved for future use
     reserved_: u2 = 0,
+
+    pub fn shift() KeyModifier {
+        return KeyModifier{ .shift = true };
+    }
+
+    pub fn control() KeyModifier {
+        return KeyModifier{ .control = true };
+    }
+
+    pub fn alt() KeyModifier {
+        return KeyModifier{ .alt = true };
+    }
+
+    pub fn super() KeyModifier {
+        return KeyModifier{ .super = true };
+    }
+
+    pub fn hyper() KeyModifier {
+        return KeyModifier{ .hyper = true };
+    }
+
+    pub fn meta() KeyModifier {
+        return KeyModifier{ .meta = true };
+    }
 };
 
 pub const KeyEvent = struct { code: KeyCode, modifier: KeyModifier };

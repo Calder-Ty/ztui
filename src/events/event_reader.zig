@@ -48,6 +48,10 @@ pub const EventReader = struct {
 };
 
 fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyEvent {
+
+    // # For Legacy Encoding there are 3 big things that we want to make sure
+    // SI number ; modifier ~
+    // CSI 1 ; modifier {ABCDEFHPQS}
     switch (parse_buffer[0]) {
         // | `ESC` | 27      | 033   | 0x1B | `\e`[*](#escape) | `^[` | Escape character           |
         0x1B => {
@@ -63,6 +67,7 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyEvent {
                 }
             } else {
                 const code: keycodes.KeyCode = switch (parse_buffer[1]) {
+                    // SS3 {ABCDEFHPQRS}
                     'O' => blk: {
                         if (parse_buffer.len == 2) {
                             return null;
@@ -82,7 +87,13 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyEvent {
                             }
                         }
                     },
-                    // '[' => parse_csi(parse_buffer),
+                    '[' => blk: {
+                        const val = parseCsi(parse_buffer);
+                        if (val == null) {
+                            return null;
+                        }
+                        break :blk val.?;
+                    },
                     0x1B => keycodes.KeyCode.Esc,
                     // Not doing public events right now
                     else => {
@@ -93,14 +104,15 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyEvent {
             }
         },
         '\r' => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Enter, .modifier = keycodes.KeyModifier{} },
+        // FIXME: This needs special care for when we are in RAW MODE, which is kinda always
         // '\n' We need to hanlde this.
         '\t' => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Tab, .modifier = keycodes.KeyModifier{} },
 
-        // | `DEL` | 127     | 177   | 0x7F | `<none>` | `<none>` | Delete character               |
-        0x7F => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Delete, .modifier = keycodes.KeyModifier{} },
+        // Kity Has this as Backspace
+        0x7F => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Backspace, .modifier = keycodes.KeyModifier{} },
         // These are Control - Characters.
         // | `BS`  | 8       | 010   | 0x08 | `\b`     | `^H`     | Backspace                      |
-        0x08 => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Backspace, .modifier = keycodes.KeyModifier{} },
+        0x08 => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Backspace, .modifier = keycodes.KeyModifier.control() },
         0x01...0x07, 0x0A...0x0C, 0x0E...0x1A => |c| {
             return keycodes.KeyEvent{
                 .code = keycodes.KeyCode{ .Char = (c - 0x1 + 'a') },
@@ -126,6 +138,24 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyEvent {
             return null;
         },
     }
+}
+
+fn parseCsi(buff: []const u8) ?keycodes.KeyCode {
+    std.debug.assert(std.mem.eql(u8, buff[0..2], &[_]u8{ 0x1B, '[' }));
+
+    if (buff.len == 2) {
+        return null;
+    }
+
+    return switch (buff[2]) {
+        'A' => keycodes.KeyCode.Up,
+        'B' => keycodes.KeyCode.Down,
+        'C' => keycodes.KeyCode.Right,
+        'D' => keycodes.KeyCode.Left,
+        'H' => keycodes.KeyCode.Home,
+        'F' => keycodes.KeyCode.End,
+        else => null,
+    };
 }
 
 fn parseUtf8Char(buff: []const u8) !?u21 {
@@ -171,4 +201,9 @@ test "parse escape sequence" {
     const input = "\x1BOD";
     const res = try parseEvent(input[0..], false);
     try testing.expect(std.meta.eql(res.?, keycodes.KeyEvent{ .code = keycodes.KeyCode.Left, .modifier = keycodes.KeyModifier{} }));
+}
+test "parse csi" {
+    const input = [_]u8{ 0x1B, '[', 'D' };
+    const res = parseCsi(input[0..]);
+    try testing.expect(std.meta.eql(res.?, keycodes.KeyCode.Left));
 }

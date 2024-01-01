@@ -38,7 +38,7 @@ pub const EventReader = struct {
 
             offset = i - start;
 
-            const res = parseEvent(inbuff[start .. start + offset], more) catch {
+            const res = parseEvent(inbuff[start .. start + offset], more_available) catch {
                 start = i - 1;
                 continue;
             };

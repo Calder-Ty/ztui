@@ -6,6 +6,9 @@ const event_queue = @import("event_queue.zig");
 const testing = std.testing;
 const io = std.io;
 const fs = std.fs;
+const KeyEvent = keycodes.KeyEvent;
+const KeyCode = keycodes.KeyCode;
+const KeyModifier = keycodes.KeyModifier;
 
 const READER_BUF_SIZE = 1024;
 
@@ -13,10 +16,10 @@ const ReadOut = struct { [READER_BUF_SIZE]u8, usize };
 
 /// Read Input and generate an Event stream
 pub const EventReader = struct {
-    event_buffer: event_queue.RingBuffer(keycodes.KeyCode, READER_BUF_SIZE),
+    event_buffer: event_queue.RingBuffer(KeyCode, READER_BUF_SIZE),
 
     pub fn init() EventReader {
-        const event_buffer = event_queue.RingBuffer(keycodes.KeyCode, READER_BUF_SIZE).init();
+        const event_buffer = event_queue.RingBuffer(KeyCode, READER_BUF_SIZE).init();
         return EventReader{ .event_buffer = event_buffer };
     }
 
@@ -47,7 +50,7 @@ pub const EventReader = struct {
     }
 };
 
-fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyEvent {
+fn parseEvent(parse_buffer: []const u8, more: bool) !?KeyEvent {
 
     // # For Legacy Encoding there are 3 big things that we want to make sure
     // SI number ; modifier ~
@@ -60,87 +63,62 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?keycodes.KeyEvent {
                     // Possible Esc sequence
                     return null;
                 } else {
-                    return keycodes.KeyEvent{
-                        .code = keycodes.KeyCode.Esc,
-                        .modifier = keycodes.KeyModifier{},
+                    return KeyEvent{
+                        .code = KeyCode.Esc,
+                        .modifier = KeyModifier{},
                     };
                 }
             } else {
-                const code: keycodes.KeyCode = switch (parse_buffer[1]) {
+                return switch (parse_buffer[1]) {
                     // SS3 {ABCDEFHPQRS}
-                    'O' => blk: {
-                        if (parse_buffer.len == 2) {
-                            return null;
-                        } else {
-                            switch (parse_buffer[2]) {
-                                'A' => break :blk keycodes.KeyCode.Up,
-                                'B' => break :blk keycodes.KeyCode.Down,
-                                'C' => break :blk keycodes.KeyCode.Right,
-                                'D' => break :blk keycodes.KeyCode.Left,
-                                'H' => break :blk keycodes.KeyCode.Home,
-                                'F' => break :blk keycodes.KeyCode.End,
-                                // F1-F4
-                                'P'...'S' => |val| {
-                                    break :blk keycodes.KeyCode{ .F = (1 + val - 'P') };
-                                },
-                                else => return error.CouldNotParse,
-                            }
-                        }
-                    },
-                    '[' => blk: {
-                        const val = parseCsi(parse_buffer);
-                        if (val == null) {
-                            return null;
-                        }
-                        break :blk val.?;
-                    },
-                    0x1B => keycodes.KeyCode.Esc,
+                    'O' => try handleSS3Code(parse_buffer),
+                    '[' => handleCSI(parse_buffer),
+                    0x1B => KeyEvent{ .code = KeyCode.Esc, .modifier = KeyModifier{} },
                     // Not doing public events right now
                     else => {
                         return null;
                     },
                 };
-                return keycodes.KeyEvent{ .code = code, .modifier = keycodes.KeyModifier{} };
             }
         },
-        '\r' => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Enter, .modifier = keycodes.KeyModifier{} },
+        '\r' => return KeyEvent{ .code = KeyCode.Enter, .modifier = KeyModifier{} },
         // FIXME: This needs special care for when we are in RAW MODE, which is kinda always
         // '\n' We need to hanlde this.
-        '\t' => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Tab, .modifier = keycodes.KeyModifier{} },
+        '\t' => return KeyEvent{ .code = KeyCode.Tab, .modifier = KeyModifier{} },
 
         // Kity Has this as Backspace
-        0x7F => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Backspace, .modifier = keycodes.KeyModifier{} },
+        0x7F => return KeyEvent{ .code = KeyCode.Backspace, .modifier = KeyModifier{} },
         // These are Control - Characters.
         // | `BS`  | 8       | 010   | 0x08 | `\b`     | `^H`     | Backspace                      |
-        0x08 => return keycodes.KeyEvent{ .code = keycodes.KeyCode.Backspace, .modifier = keycodes.KeyModifier.control() },
+        0x08 => return KeyEvent{ .code = KeyCode.Backspace, .modifier = KeyModifier.control() },
         0x01...0x07, 0x0A...0x0C, 0x0E...0x1A => |c| {
-            return keycodes.KeyEvent{
-                .code = keycodes.KeyCode{ .Char = (c - 0x1 + 'a') },
-                .modifier = keycodes.KeyModifier.control(),
+            return KeyEvent{
+                .code = KeyCode{ .Char = (c - 0x1 + 'a') },
+                .modifier = KeyModifier.control(),
             };
         },
         0x1C...0x1F => |c| {
-            return keycodes.KeyEvent{
-                .code = keycodes.KeyCode{ .Char = (c - 0x1 + '4') },
-                .modifier = keycodes.KeyModifier.control(),
+            return KeyEvent{
+                .code = KeyCode{ .Char = (c - 0x1 + '4') },
+                .modifier = KeyModifier.control(),
             };
         },
-        0x0 => return keycodes.KeyEvent{
-            .code = keycodes.KeyCode{ .Char = ' ' },
-            .modifier = keycodes.KeyModifier.control(),
+        0x0 => return KeyEvent{
+            .code = KeyCode{ .Char = ' ' },
+            .modifier = KeyModifier.control(),
         },
         else => {
             // Not unreachable, this will break on any regular text input
             const char = try parseUtf8Char(parse_buffer);
             if (char) |c| {
-                return keycodes.KeyEvent{ .code = keycodes.KeyCode{ .Char = c }, .modifier = keycodes.KeyModifier{} };
+                return KeyEvent{ .code = KeyCode{ .Char = c }, .modifier = KeyModifier{} };
             }
             return null;
         },
     }
 }
 
-fn parseCsi(buff: []const u8) ?keycodes.KeyCode {
+fn handleCSI(buff: []const u8) ?KeyEvent {
     std.debug.assert(std.mem.eql(u8, buff[0..2], &[_]u8{ 0x1B, '[' }));
 
     if (buff.len == 2) {
@@ -148,14 +126,39 @@ fn parseCsi(buff: []const u8) ?keycodes.KeyCode {
     }
 
     return switch (buff[2]) {
-        'A' => keycodes.KeyCode.Up,
-        'B' => keycodes.KeyCode.Down,
-        'C' => keycodes.KeyCode.Right,
-        'D' => keycodes.KeyCode.Left,
-        'H' => keycodes.KeyCode.Home,
-        'F' => keycodes.KeyCode.End,
+        'A' => KeyEvent{ .code = KeyCode.Up, .modifier = KeyModifier{} },
+        'B' => KeyEvent{ .code = KeyCode.Down, .modifier = KeyModifier{} },
+        'C' => KeyEvent{ .code = KeyCode.Right, .modifier = KeyModifier{} },
+        'D' => KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{} },
+        'H' => KeyEvent{ .code = KeyCode.Home, .modifier = KeyModifier{} },
+        'F' => KeyEvent{ .code = KeyCode.End, .modifier = KeyModifier{} },
         else => null,
     };
+}
+
+/// Handles SS3 Code
+/// Must only be called when you know the buff begins with {0x1B,'O'}
+fn handleSS3Code(buff: []const u8) !?KeyEvent {
+    std.debug.assert(std.mem.eql(u8, buff[0..2], &[_]u8{ 0x1b, 'O' }));
+
+    if (buff.len == 2) {
+        return null;
+    } else {
+        const code = switch (buff[2]) {
+            'A' => KeyCode.Up,
+            'B' => KeyCode.Down,
+            'C' => KeyCode.Right,
+            'D' => KeyCode.Left,
+            'H' => KeyCode.Home,
+            'F' => KeyCode.End,
+            // F1-F4
+            'P'...'S' => |val| KeyCode{
+                .F = (1 + val - 'P'),
+            },
+            else => return error.CouldNotParse,
+        };
+        return KeyEvent{ .code = code, .modifier = KeyModifier{} };
+    }
 }
 
 fn parseUtf8Char(buff: []const u8) !?u21 {
@@ -188,22 +191,44 @@ fn parseUtf8Char(buff: []const u8) !?u21 {
 test "parse event 'A'" {
     testing.refAllDecls(@This());
     const res = try parseEvent(&[_]u8{'A'}, false);
-    try testing.expect(std.meta.eql(res.?, keycodes.KeyEvent{ .code = keycodes.KeyCode{ .Char = 'A' }, .modifier = keycodes.KeyModifier{} }));
+    try testing.expect(std.meta.eql(res.?, KeyEvent{ .code = KeyCode{ .Char = 'A' }, .modifier = KeyModifier{} }));
 }
 
 test "parse event '󱫎'" {
     testing.refAllDecls(@This());
     const res2 = try parseEvent(&[_]u8{ 0xf3, 0xb1, 0xab, 0x8e }, false);
-    try testing.expect(std.meta.eql(res2.?, keycodes.KeyEvent{ .code = keycodes.KeyCode{ .Char = '󱫎' }, .modifier = keycodes.KeyModifier{} }));
+    try testing.expect(std.meta.eql(res2.?, KeyEvent{ .code = KeyCode{ .Char = '󱫎' }, .modifier = KeyModifier{} }));
 }
 
 test "parse escape sequence" {
     const input = "\x1BOD";
     const res = try parseEvent(input[0..], false);
-    try testing.expect(std.meta.eql(res.?, keycodes.KeyEvent{ .code = keycodes.KeyCode.Left, .modifier = keycodes.KeyModifier{} }));
+    try testing.expect(std.meta.eql(res.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{} }));
 }
+
 test "parse csi" {
     const input = [_]u8{ 0x1B, '[', 'D' };
-    const res = parseCsi(input[0..]);
-    try testing.expect(std.meta.eql(res.?, keycodes.KeyCode.Left));
+    const res = handleCSI(input[0..]);
+    try testing.expect(std.meta.eql(res.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{} }));
+}
+
+test "parse ss3" {
+    const keys = [_]u8{ 'A', 'B', 'C', 'D', 'F', 'H', 'P', 'Q', 'R', 'S' };
+    const codes = [_]KeyCode{
+        KeyCode.Up,
+        KeyCode.Down,
+        KeyCode.Right,
+        KeyCode.Left,
+        KeyCode.End,
+        KeyCode.Home,
+        KeyCode{ .F = 1 },
+        KeyCode{ .F = 2 },
+        KeyCode{ .F = 3 },
+        KeyCode{ .F = 4 },
+    };
+    inline for (keys, codes) |key, code| {
+        const input = [_]u8{ 0x1B, 'O', key };
+        const res = try handleSS3Code(input[0..]);
+        try testing.expect(std.meta.eql(res.?, KeyEvent{ .code = code, .modifier = KeyModifier{} }));
+    }
 }

@@ -2,17 +2,16 @@
 //! Much inspiration taken from Crosterm-rs
 
 /// KeyModifiers is a Packed u8
-/// if the value == 0, then it is None
+/// By default the value is Modified
 pub const KeyModifier = packed struct(u8) {
     shift: bool = false,
-    control: bool = false,
     alt: bool = false,
+    control: bool = false,
     super: bool = false,
     hyper: bool = false,
     meta: bool = false,
-
-    /// Reserved for future use
-    reserved_: u2 = 0,
+    caps_lock: bool = false,
+    num_lock: bool = false,
 
     pub fn shift() KeyModifier {
         return KeyModifier{ .shift = true };
@@ -36,6 +35,14 @@ pub const KeyModifier = packed struct(u8) {
 
     pub fn meta() KeyModifier {
         return KeyModifier{ .meta = true };
+    }
+
+    pub fn caps_lock() KeyModifier {
+        return KeyModifier{ .caps_lock = true };
+    }
+
+    pub fn num_lock() KeyModifier {
+        return KeyModifier{ .num_lock = true };
     }
 };
 

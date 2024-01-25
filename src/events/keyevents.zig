@@ -1,6 +1,13 @@
 //! Handle Keyboard Events
 //! Much inspiration taken from Crosterm-rs
 
+/// KeyAction
+pub const KeyAction = enum(u2) {
+    press = 1,
+    repeat,
+    release,
+};
+
 /// KeyModifiers is a Packed u8
 /// By default the value is Modified
 pub const KeyModifier = packed struct(u8) {

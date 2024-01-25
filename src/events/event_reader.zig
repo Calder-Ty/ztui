@@ -202,14 +202,14 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
                         // CSI unicode-key-code:alternate-key-codes ; modifiers:event-type ; text-as-codepoints u
 
                         // Check Terminal Status?
-                        var splits = std.mem.splitSequence(u8, buff[2 .. buff.len - 2], ";");
+                        var splits = std.mem.splitSequence(u8, buff[2 .. buff.len - 1], ";");
                         const codepoint_section: []const u8 = splits.next() orelse return error.CouldNotParse;
 
                         // TODO: Fix this when implementing alternate-key-codes
                         var codepoint_seq = std.mem.tokenizeSequence(u8, codepoint_section, ":");
                         const codepoint = (codepoint_seq.next() orelse return error.CouldNotParse);
-                        const keycode = parseUnicodeEvents(codepoint);
-
+                        const keycode = try parseUnicodeEvents(codepoint);
+                        break :out keycode;
                     } else {
                         return error.CouldNotParse;
                     }
@@ -224,119 +224,81 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
 }
 
 fn parseUnicodeEvents(codepoint: []const u8) !KeyCode {
-    return switch (std.fmt.parseInt(codepoint)) {
-27 => KeyCode.Escape,// ESCAPE
-13 => // ENTER
-9 => // TAB
-127 => // BACKSPACE
-2 => // INSERT
-3 => // DELETE
-1 => // LEFT
-1 => // RIGHT
-1 => // UP
-1 => // DOWN
-5 => // PAGE_UP
-6 => // PAGE_DOWN
-1 => // HOME
-1 => // END
-57358 => // CAPS_LOCK
-57359 => // SCROLL_LOCK
-57360 => // NUM_LOCK
-57361 => // PRINT_SCREEN
-57362 => // PAUSE
-57363 => // MENU
-1 => // F1
-1 => // F2
-13 => // F3
-1 => // F4
-15 => // F5
-17 => // F6
-18 => // F7
-19 => // F8
-20 => // F9
-21 => // F10
-23 => // F11
-24 => // F12
-57376 => // F13
-57377 => // F14
-57378 => // F15
-57379 => // F16
-57380 => // F17
-57381 => // F18
-57382 => // F19
-57383 => // F20
-57384 => // F21
-57385 => // F22
-57386 => // F23
-57387 => // F24
-57388 => // F25
-57389 => // F26
-57390 => // F27
-57391 => // F28
-57392 => // F29
-57393 => // F30
-57394 => // F31
-57395 => // F32
-57396 => // F33
-57397 => // F34
-57398 => // F35
-57399 => // KP_0
-57400 => // KP_1
-57401 => // KP_2
-57402 => // KP_3
-57403 => // KP_4
-57404 => // KP_5
-57405 => // KP_6
-57406 => // KP_7
-57407 => // KP_8
-57408 => // KP_9
-57409 => // KP_DECIMAL
-57410 => // KP_DIVIDE
-57411 => // KP_MULTIPLY
-57412 => // KP_SUBTRACT
-57413 => // KP_ADD
-57414 => // KP_ENTER
-57415 => // KP_EQUAL
-57416 => // KP_SEPARATOR
-57417 => // KP_LEFT
-57418 => // KP_RIGHT
-57419 => // KP_UP
-57420 => // KP_DOWN
-57421 => // KP_PAGE_UP
-57422 => // KP_PAGE_DOWN
-57423 => // KP_HOME
-57424 => // KP_END
-57425 => // KP_INSERT
-57426 => // KP_DELETE
-1 => // KP_BEGIN
-57428 => // MEDIA_PLAY
-57429 => // MEDIA_PAUSE
-57430 => // MEDIA_PLAY_PAUSE
-57431 => // MEDIA_REVERSE
-57432 => // MEDIA_STOP
-57433 => // MEDIA_FAST_FORWARD
-57434 => // MEDIA_REWIND
-57435 => // MEDIA_TRACK_NEXT
-57436 => // MEDIA_TRACK_PREVIOUS
-57437 => // MEDIA_RECORD
-57438 => // LOWER_VOLUME
-57439 => // RAISE_VOLUME
-57440 => // MUTE_VOLUME
-57441 => // LEFT_SHIFT
-57442 => // LEFT_CONTROL
-57443 => // LEFT_ALT
-57444 => // LEFT_SUPER
-57445 => // LEFT_HYPER
-57446 => // LEFT_META
-57447 => // RIGHT_SHIFT
-57448 => // RIGHT_CONTROL
-57449 => // RIGHT_ALT
-57450 => // RIGHT_SUPER
-57451 => // RIGHT_HYPER
-57452 => // RIGHT_META
-57453 => // ISO_LEVEL3_SHIFT
-57454 => // ISO_LEVEL5_SHIFT
-    }
+    const parsed = try std.fmt.parseInt(u16, codepoint, 10);
+    std.log.warn("Parsed this input {d}\n", .{parsed});
+    return switch (parsed) {
+        27 => KeyCode.Esc, // ESCAPE
+        13 => KeyCode.Enter, // ENTER
+        9 => KeyCode.Tab, // TAB
+        127 => KeyCode.Backspace, // BACKSPACE
+        57358 => KeyCode.CapsLock, // CAPS_LOCK
+        57359 => KeyCode.ScrollLock, // SCROLL_LOCK
+        57360 => KeyCode.NumLock, // NUM_LOCK
+        57361 => KeyCode.PrintScreen, // PRINT_SCREEN
+        57362 => KeyCode.Pause, // PAUSE
+        57363 => KeyCode.Menu, // MENU
+        57376...57398 => |c| output: {
+            // SAFTEY: This is Safe because c will always be in a range where delta is < 34
+            const delta: u8 = @truncate(c - 57376);
+            break :output KeyCode{ .F = 13 + delta };
+        }, // F13
+        // Crossterm Reports these as KeyEvent State and references the "Disambiguate Escape Codes"
+        // part of the protocol. I don't see where it is mentioned specifically that these are
+        // coded with a state parameter, but for now I'll ignore the origin from the KeyPad and we
+        // will deal with it later
+        57399...57408 => |c| output: {
+            // SAFTEY: This is Safe because c will always be in a range where delta is < 10
+            const delta: u8 = @truncate(c - 57399);
+            break :output KeyCode{ .Char = '0' + delta };
+        }, // KP_0
+        57409 => KeyCode{ .Char = '.' }, // KP_DECIMAL
+        57410 => KeyCode{ .Char = '/' }, // KP_DIVIDE
+        57411 => KeyCode{ .Char = '*' }, // KP_MULTIPLY
+        57412 => KeyCode{ .Char = '-' }, // KP_SUBTRACT
+        57413 => KeyCode{ .Char = '+' }, // KP_ADD
+        57414 => KeyCode.Enter, // KP_ENTER
+        57415 => KeyCode{ .Char = '=' }, // KP_EQUAL
+        // This is how Crossterm does it, but... Not really localized, maybe we ought to localize?
+        57416 => KeyCode{ .Char = ',' }, // KP_SEPARATOR
+        57417 => KeyCode.Left, // KP_LEFT
+        57418 => KeyCode.Right, // KP_RIGHT
+        57419 => KeyCode.Up, // KP_UP
+        57420 => KeyCode.Down, // KP_DOWN
+        57421 => KeyCode.PageUp, // KP_PAGE_UP
+        57422 => KeyCode.PageDown, // KP_PAGE_DOWN
+        57423 => KeyCode.Home, // KP_HOME
+        57424 => KeyCode.End, // KP_END
+        57425 => KeyCode.Insert, // KP_INSERT
+        57426 => KeyCode.Delete, // KP_DELETE
+        57428 => KeyCode{ .Media = .Play }, // MEDIA_PLAY
+        57429 => KeyCode{ .Media = .Pause }, // MEDIA_PAUSE
+        57430 => KeyCode{ .Media = .PlayPause }, // MEDIA_PLAY_PAUSE
+        57431 => KeyCode{ .Media = .Reverse }, // MEDIA_REVERSE
+        57432 => KeyCode{ .Media = .Stop }, // MEDIA_STOP
+        57433 => KeyCode{ .Media = .FastForward }, // MEDIA_FAST_FORWARD
+        57434 => KeyCode{ .Media = .Rewind }, // MEDIA_REWIND
+        57435 => KeyCode{ .Media = .TrackNext }, // MEDIA_TRACK_NEXT
+        57436 => KeyCode{ .Media = .TrackPrevious }, // MEDIA_TRACK_PREVIOUS
+        57437 => KeyCode{ .Media = .Record }, // MEDIA_RECORD
+        57438 => KeyCode{ .Media = .LowerVolume }, // LOWER_VOLUME
+        57439 => KeyCode{ .Media = .RaiseVolume }, // RAISE_VOLUME
+        57440 => KeyCode{ .Media = .MuteVolume }, // MUTE_VOLUME
+        57441 => KeyCode{ .Modifier = .LeftShift }, // LEFT_SHIFT
+        57442 => KeyCode{ .Modifier = .LeftControl }, // LEFT_CONTROL
+        57443 => KeyCode{ .Modifier = .LeftAlt }, // LEFT_ALT
+        57444 => KeyCode{ .Modifier = .LeftSuper }, // LEFT_SUPER
+        57445 => KeyCode{ .Modifier = .LeftHyper }, // LEFT_HYPER
+        57446 => KeyCode{ .Modifier = .LeftMeta }, // LEFT_META
+        57447 => KeyCode{ .Modifier = .RightShift }, // RIGHT_SHIFT
+        57448 => KeyCode{ .Modifier = .RightControl }, // RIGHT_CONTROL
+        57449 => KeyCode{ .Modifier = .RightAlt }, // RIGHT_ALT
+        57450 => KeyCode{ .Modifier = .RightSuper }, // RIGHT_SUPER
+        57451 => KeyCode{ .Modifier = .RightHyper }, // RIGHT_HYPER
+        57452 => KeyCode{ .Modifier = .RightMeta }, // RIGHT_META
+        57453 => KeyCode{ .Modifier = .IsoLevel3Shift }, // ISO_LEVEL3_SHIFT
+        57454 => KeyCode{ .Modifier = .IsoLevel5Shift }, // ISO_LEVEL5_SHIFT
+        else => return error.CouldNotParse,
+    };
 }
 
 fn getCodepoint(buff: []const u8) ![]const u8 {
@@ -502,6 +464,7 @@ test "parse c0 codes to standard representation" {
 }
 
 test "parse Extended Keyboard Events" {
-    const result = try parseEvent("\x1b\x5b57428u");
+    const result = try parseEvent("\x1b\x5b57428u", false);
+    std.log.warn("result is {?}", .{result});
     try testing.expect(std.meta.eql(KeyEvent{ .code = KeyCode{ .Media = .Play }, .modifier = KeyModifier{} }, result.?));
 }

@@ -148,7 +148,9 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
     // Key Sequences like this are of mode:
     //      CSI unicode-key-code:alternate-key-codes ; modifiers:event-type ; text-as-codepoints [u~]
     //
-    // CSI: "\x1B["
+    // TODO:Make this bytesequence a constant
+    // CSI is the byte_sequence "\x1B["
+    //
     // In the general case. Some of these fields are optional
     // To be exact the folowing forms are OK.
     //
@@ -159,6 +161,9 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
     // KKP:
     // GENERAL: CSI unicode-key-code[:alternate-key-codes] ; [modifiers:event-type] ; [text-as-codepoints] u
     // SPECIAL: CSI unicode-key-code u
+    //
+    // TODO: Do the text-as-codepoints part
+    // Text Codepoints are a progressive enhancement, Let's ingore them for now
 
     std.debug.assert(std.mem.eql(u8, buff[0..2], &[_]u8{ 0x1B, '[' }));
 
@@ -181,15 +186,36 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
             else => return error.CouldNotParse,
         };
     } else if (buff[2] == '1' or buff[buff.len - 1] == '~') {
-        event = parseLegacyCSI(buff);
-        // In this Case we are expecting Form 2 of the Legacy Functional keys
-        // CSI 1 ; Modifier { ABCDFH } So there needs to be 6 bytes
-        if (buff.len < 6){
-            return null;
-        }
-        std.debug.assert(std.mem.eql(u8, buff[2..4], &[_]u8{'1', ';' }));
-        const modifier = parseModifier(buff[4]);
-        const code: KeyCode = switch (buff[5]) {
+        event = try parseLegacyCSI(buff);
+    } else {
+        event = try parseKKPCSI(buff);
+    }
+    return event;
+}
+
+// Parses the Legacy Characters form CSI
+fn parseLegacyCSI(buff: []const u8) !?KeyEvent {
+    // Legacy CSI Key codes have two major forms:
+    // Form 1: CSI number ; modifier ~
+    // Form 2: CSI [1 ; modifier] {ABCDHF}
+    //
+    // The docs specify that there are more valid Terminating values for Form 2, but
+    // Then they don't actually show any keys mapped to those values. I belive
+    // This is an oversight on the documentations end
+
+    var code: KeyCode = undefined;
+    var modifier: KeyModifier = undefined;
+
+    var token_stream = std.mem.splitSequence(u8, buff[2..], ";");
+    const number = token_stream.first();
+    const modifier_and_term = token_stream.next();
+
+    if (modifier_and_term) |modifier_plus| {
+        // The first byte is what caries the modifier
+        modifier = parseModifier(modifier_plus[0]);
+    } else {
+        // Then possibly we are in the minimal Form 2 (i.e CSI {ABCDHF})
+        code = switch (buff[buff.len - 1]) {
             'A' => KeyCode.Up,
             'B' => KeyCode.Down,
             'C' => KeyCode.Right,
@@ -198,61 +224,15 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
             'F' => KeyCode.End,
             else => return error.CouldNotParse,
         };
-        event = KeyEvent{ .code = code, .modifier = modifier };
-    } else {
-            0x2...0xFF => |c| output: {
-                const last_char = buff[buff.len - 1];
-                const code: KeyCode = out: {
-                    if (last_char == '~') {
-                        // Form 1 Legacy encoding
-                        switch (c) {
-                            2 => break :out KeyCode.Insert,
-                            3 => break :out KeyCode.Delete,
-                            5 => break :out KeyCode.PageUp,
-                            6 => break :out KeyCode.PageDown,
-                            15 => break :out KeyCode{ .F = 5 },
-                            17...21 => |v| break :out KeyCode{ .F = v - 11 },
-                            23...24 => |v| break :out KeyCode{ .F = v - 12 },
-                            29 => break :out KeyCode.Menu,
-                            else => return error.CouldNotParse,
-                        }
-                    } else if (last_char == 'u') {
-                        // Unimplemented Stuff for the Kitty Keybaord Protocol
-                        // CSI unicode-key-code:alternate-key-codes ; modifiers:event-type ; text-as-codepoints u
-
-                        // Check Terminal Status?
-                        var splits = std.mem.splitSequence(u8, buff[2 .. buff.len - 1], ";");
-                        const codepoint_section: []const u8 = splits.next() orelse return error.CouldNotParse;
-
-                        // TODO: Fix this when implementing alternate-key-codes
-                        var codepoint_seq = std.mem.tokenizeSequence(u8, codepoint_section, ":");
-                        const codepoint = (codepoint_seq.next() orelse return error.CouldNotParse);
-                        const keycode = try parseUnicodeEvents(codepoint);
-                        break :out keycode;
-                    } else {
-                        return error.CouldNotParse;
-                    }
-                };
-                const modifier = parseModifier(buff[buff.len - 2]);
-                break :output KeyEvent{ .code = code, .modifier = modifier };
-            },
-            else => null,
-        };
-    return event;
-}
-
-
-// Parses the Legacy Characters form CSI
-fn parseLegacyCSI(buff: []const u8) !KeyEvent {
-    var event: ?KeyEvent = null;
-    var code: KeyCode = undefined;
-    if (buff[2] == '1')  {
+    }
+    const codepoint = try std.fmt.parseInt(u8, number, 10);
+    if (codepoint == 1) {
         // In this Case we are expecting Form 2 of the Legacy Functional keys
         // CSI 1 ; Modifier { ABCDFH } So there needs to be 6 bytes
-        if (buff.len < 6){
+        if (buff.len < 6) {
             return null;
         }
-        std.debug.assert(std.mem.eql(u8, buff[2..4], "1;" ));
+        std.debug.assert(std.mem.eql(u8, buff[2..4], "1;"));
         code = switch (buff[5]) {
             'A' => KeyCode.Up,
             'B' => KeyCode.Down,
@@ -262,24 +242,61 @@ fn parseLegacyCSI(buff: []const u8) !KeyEvent {
             'F' => KeyCode.End,
             else => return error.CouldNotParse,
         };
-        event = KeyEvent{ .code = code, .modifier = modifier };
     } else {
         // Form 1 Legacy encoding
-        code = switch (buff[2]) {
+        code = switch (codepoint) {
             2 => KeyCode.Insert,
             3 => KeyCode.Delete,
             5 => KeyCode.PageUp,
             6 => KeyCode.PageDown,
             15 => KeyCode{ .F = 5 },
+            // This will not work because  17 (and 18,19,20 etc) is not a character.. Sigh
             17...21 => |v| KeyCode{ .F = v - 11 },
             23...24 => |v| KeyCode{ .F = v - 12 },
             29 => KeyCode.Menu,
             else => return error.CouldNotParse,
-        }
+        };
     }
-    const modifier = parseModifier(buff[4]);
+    return KeyEvent{ .code = code, .modifier = modifier };
 }
 
+fn parseKKPCSI(buff: []const u8) !?KeyEvent {
+    // GENERAL: CSI unicode-key-code[:alternate-key-codes] ; [modifiers:event-type] ; [text-as-codepoints] u
+    // SPECIAL: CSI unicode-key-code u
+    if (buff[buff.len - 1] != 'u') {
+        // FIXME: How do we stop it from looping forever on the input hoping for more bytes?
+        // This is not something that can be parsed as a KKP CSI code
+        return null;
+    }
+    var code: KeyCode = undefined;
+    var modifier: KeyModifier = undefined;
+
+    var token_stream = std.mem.splitSequence(u8, buff[2..], ";");
+    const codepoint_section = token_stream.first();
+    const modifier_section = token_stream.next();
+    const text_codepoints = token_stream.next();
+    _ = text_codepoints;
+    if (modifier_section) |mod_section| {
+        // General Case. XXX: We are ignoring text-as-codepoints for now, as we
+        // are not really supporting progressive enhancements at this point.
+        // It will be some of the next things we work on.
+        var modifier_seq = std.mem.splitSequence(u8, mod_section, ":");
+        modifier = parseModifier(modifier_seq.first()[0]);
+        // TODO: Handle KeyPress Events as well
+        // ALSO, The docs seem to indicate that A should be sent in this form.
+        // We are not expecting it. We'll need to build a simple tool
+        // that can test our output and see what we get
+    } else {
+        // This should be the special case, a codepoint with no modifiers
+        modifier = KeyModifier{};
+    }
+
+    var codepoint_seq = std.mem.splitSequence(u8, codepoint_section, ":");
+    const codepoint = codepoint_seq.first();
+    code = try parseUnicodeEvents(codepoint);
+
+    return KeyEvent{ .code = code, .modifier = modifier };
+}
 
 fn parseUnicodeEvents(codepoint: []const u8) !KeyCode {
     const parsed = try std.fmt.parseInt(u16, codepoint, 10);
@@ -452,7 +469,7 @@ test "parse escape sequence" {
 }
 
 test "parse csi" {
-    const input = "\x1B[1;\x02D" };
+    const input = "\x1B[1;\x02D";
     const res = try handleCSI(input[0..]);
     try testing.expect(std.meta.eql(res.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{ .shift = true } }));
 }
@@ -522,7 +539,7 @@ test "parse c0 codes to standard representation" {
 }
 
 test "parse Extended Keyboard Events" {
-    const result = try parseEvent("\x1b[b57428u", false);
+    const result = try parseEvent("\x1b[57428u", false);
     std.log.warn("result is {?}", .{result});
     try testing.expect(std.meta.eql(KeyEvent{ .code = KeyCode{ .Media = .Play }, .modifier = KeyModifier{} }, result.?));
 }

@@ -270,6 +270,7 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
     }
     var code: KeyCode = undefined;
     var modifier: KeyModifier = undefined;
+    var codepoint: []const u8 = undefined;
 
     var token_stream = std.mem.splitSequence(u8, buff[2..], ";");
     const codepoint_section = token_stream.first();
@@ -280,6 +281,9 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
         // General Case. XXX: We are ignoring text-as-codepoints for now, as we
         // are not really supporting progressive enhancements at this point.
         // It will be some of the next things we work on.
+        var codepoint_seq = std.mem.splitSequence(u8, codepoint_section, ":");
+        codepoint = codepoint_seq.first();
+
         var modifier_seq = std.mem.splitSequence(u8, mod_section, ":");
         modifier = parseModifier(modifier_seq.first()[0]);
         // TODO: Handle KeyPress Events as well
@@ -289,10 +293,9 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
     } else {
         // This should be the special case, a codepoint with no modifiers
         modifier = KeyModifier{};
+        codepoint = codepoint_section[0 .. codepoint_section.len - 1];
     }
 
-    var codepoint_seq = std.mem.splitSequence(u8, codepoint_section, ":");
-    const codepoint = codepoint_seq.first();
     code = try parseUnicodeEvents(codepoint);
 
     return KeyEvent{ .code = code, .modifier = modifier };
@@ -540,6 +543,5 @@ test "parse c0 codes to standard representation" {
 
 test "parse Extended Keyboard Events" {
     const result = try parseEvent("\x1b[57428u", false);
-    std.log.warn("result is {?}", .{result});
     try testing.expect(std.meta.eql(KeyEvent{ .code = KeyCode{ .Media = .Play }, .modifier = KeyModifier{} }, result.?));
 }

@@ -53,7 +53,23 @@ pub const KeyModifier = packed struct(u8) {
     }
 };
 
-pub const KeyEvent = struct { code: KeyCode, modifier: KeyModifier };
+pub const KeyEvent = struct {
+    /// The Key code actuated
+    code: KeyCode,
+    /// The Modifier fileds for the key
+    modifier: KeyModifier,
+    /// actions are only reported if progressive enhancements have been requested
+    action: ?KeyAction = null,
+    alternate: AlternateKeyCodes = AlternateKeyCodes{},
+};
+
+pub const AlternateKeyCodes = struct {
+    /// The Shifted version of they key. Only reported if progressive
+    /// enhancements have been requested
+    shifted_key: ?KeyCode = null,
+    /// The Base layout key, only reported if progressive enhancements have been requested
+    base_layout_key: ?KeyCode = null,
+};
 
 /// Straight up lifted from crosterm-rs
 pub const KeyCodeTags = enum {

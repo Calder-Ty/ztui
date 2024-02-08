@@ -9,6 +9,7 @@ const event_queue = @import("event_queue.zig");
 const testing = std.testing;
 const io = std.io;
 const fs = std.fs;
+const AlternateKeyCodes = keycodes.AlternateKeyCodes;
 const KeyEvent = keycodes.KeyEvent;
 const KeyCode = keycodes.KeyCode;
 const KeyModifier = keycodes.KeyModifier;
@@ -34,7 +35,7 @@ pub const EventReader = struct {
         return .{ inbuff, n };
     }
 
-    fn name_the_func(inbuff: []u8, more: bool) void {
+    fn parseEvents(inbuff: []u8, more: bool) void {
         var start = 0;
         var more_available = more;
         var offset = 0;
@@ -106,6 +107,7 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?KeyEvent {
         //
         // Since for now we don't expect this to be used in a way where the terminal is not
         // in raw mode we can ignore \n.
+        // FIXME: Before releasing this as a library (if we do that), we will need to fix this.
 
         0x0 => return KeyEvent{ .code = KeyCode{ .Char = ' ' }, .modifier = KeyModifier.control() },
         0x01...0x07, 0x0A...0x0C, 0x0E...0x1A => |c| {
@@ -271,6 +273,7 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
     var code: KeyCode = undefined;
     var modifier: KeyModifier = undefined;
     var codepoint: []const u8 = undefined;
+    var alternates = AlternateKeyCodes{};
 
     var token_stream = std.mem.splitSequence(u8, buff[2..], ";");
     const codepoint_section = token_stream.first();
@@ -283,6 +286,24 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
         // It will be some of the next things we work on.
         var codepoint_seq = std.mem.splitSequence(u8, codepoint_section, ":");
         codepoint = codepoint_seq.first();
+        const shifted = codepoint_seq.next();
+        const base_layout = codepoint_seq.next();
+
+        if (shifted) |k| {
+            if (k.len == 0) {
+                const char = try parseUtf8Char(k);
+                if (char) |c| {
+                    alternates.shifted_key = KeyCode{ .Char = c };
+                }
+            }
+        }
+
+        if (base_layout) |k| {
+            const char = try parseUtf8Char(k);
+            if (char) |c| {
+                alternates.base_layout_key = KeyCode{ .Char = c };
+            }
+        }
 
         var modifier_seq = std.mem.splitSequence(u8, mod_section, ":");
         modifier = parseModifier(modifier_seq.first()[0]);

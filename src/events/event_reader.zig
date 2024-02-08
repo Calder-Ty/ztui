@@ -461,7 +461,7 @@ test "parse event 'A'" {
 
 test "parse event '󱫎'" {
     testing.refAllDecls(@This());
-    const res2 = try parseEvent(&[_]u8{ 0xf3, 0xb1, 0xab, 0x8e }, false);
+    const res2 = try parseEvent("󱫎", false);
     try testing.expect(std.meta.eql(res2.?, KeyEvent{ .code = KeyCode{ .Char = '󱫎' }, .modifier = KeyModifier{} }));
 }
 

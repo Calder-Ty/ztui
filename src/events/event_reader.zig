@@ -290,7 +290,7 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
         const base_layout = codepoint_seq.next();
 
         if (shifted) |k| {
-            if (k.len == 0) {
+            if (k.len != 0) {
                 const char = try parseUtf8Char(k);
                 if (char) |c| {
                     alternates.shifted_key = KeyCode{ .Char = c };
@@ -299,9 +299,11 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
         }
 
         if (base_layout) |k| {
-            const char = try parseUtf8Char(k);
-            if (char) |c| {
-                alternates.base_layout_key = KeyCode{ .Char = c };
+            if (k.len != 0) {
+                const char = try parseUtf8Char(k);
+                if (char) |c| {
+                    alternates.base_layout_key = KeyCode{ .Char = c };
+                }
             }
         }
 
@@ -317,9 +319,16 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
         codepoint = codepoint_section[0 .. codepoint_section.len - 1];
     }
 
-    code = try parseUnicodeEvents(codepoint);
+    code = parseUnicodeEvents(codepoint) catch res: {
+        const char = try parseUtf8Char(codepoint);
+        if (char) |c| {
+            break :res KeyCode{ .Char = c };
+        }
+        // Is this right?
+        return error.CouldNotParse;
+    };
 
-    return KeyEvent{ .code = code, .modifier = modifier };
+    return KeyEvent{ .code = code, .modifier = modifier, .alternate = alternates };
 }
 
 fn parseUnicodeEvents(codepoint: []const u8) !KeyCode {
@@ -478,6 +487,16 @@ test "parse event 'A'" {
     testing.refAllDecls(@This());
     const res = try parseEvent(&[_]u8{'A'}, false);
     try testing.expect(std.meta.eql(res.?, KeyEvent{ .code = KeyCode{ .Char = 'A' }, .modifier = KeyModifier{} }));
+}
+
+test "parse event 'A' with alternate key reporting" {
+    testing.refAllDecls(@This());
+    const res = try parseEvent("\x1b[a:A;\x02u", false);
+    try testing.expect(std.meta.eql(res.?, KeyEvent{
+        .code = KeyCode{ .Char = 'a' },
+        .modifier = KeyModifier.shift(),
+        .alternate = AlternateKeyCodes{ .shifted_key = KeyCode{ .Char = 'A' } },
+    }));
 }
 
 test "parse event '󱫎'" {

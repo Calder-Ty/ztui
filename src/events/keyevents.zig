@@ -89,6 +89,7 @@ pub const KeyCodeTags = enum {
     Insert,
     F,
     Char,
+    KpKey,
     Null,
     Esc,
     CapsLock,
@@ -139,6 +140,10 @@ pub const KeyCode = union(KeyCodeTags) {
     ///
     /// `KeyCode::Char('c')` represents `c` unicode character, etc.
     Char: u21,
+    /// Key Pad Keys
+    ///
+    /// **None:** this will only be read if Progressive Enhancement is set
+    KpKey: u8,
     /// Null.
     Null,
     /// Escape key.

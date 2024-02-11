@@ -183,6 +183,7 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
             'B' => KeyEvent{ .code = KeyCode.Down, .modifier = KeyModifier{} },
             'C' => KeyEvent{ .code = KeyCode.Right, .modifier = KeyModifier{} },
             'D' => KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{} },
+            'E' => KeyEvent{ .code = KeyCode.KeypadBegin, .modifier = KeyModifier{} },
             'H' => KeyEvent{ .code = KeyCode.Home, .modifier = KeyModifier{} },
             'F' => KeyEvent{ .code = KeyCode.End, .modifier = KeyModifier{} },
             else => return error.CouldNotParse,
@@ -222,12 +223,16 @@ fn parseLegacyCSI(buff: []const u8) !?KeyEvent {
             'B' => KeyCode.Down,
             'C' => KeyCode.Right,
             'D' => KeyCode.Left,
+            'E' => KeyCode.KeypadBegin,
             'H' => KeyCode.Home,
             'F' => KeyCode.End,
+            'P' => KeyCode{ .F = 1 },
+            'Q' => KeyCode{ .F = 2 },
+            'S' => KeyCode{ .F = 4 },
             else => return error.CouldNotParse,
         };
     }
-    const codepoint = try std.fmt.parseInt(u8, number, 10);
+    const codepoint = try std.fmt.parseInt(u16, number, 10);
     if (codepoint == 1) {
         // In this Case we are expecting Form 2 of the Legacy Functional keys
         // CSI 1 ; Modifier { ABCDFH } So there needs to be 6 bytes
@@ -240,8 +245,12 @@ fn parseLegacyCSI(buff: []const u8) !?KeyEvent {
             'B' => KeyCode.Down,
             'C' => KeyCode.Right,
             'D' => KeyCode.Left,
+            'E' => KeyCode.KeypadBegin,
             'H' => KeyCode.Home,
             'F' => KeyCode.End,
+            'P' => KeyCode{ .F = 1 },
+            'Q' => KeyCode{ .F = 2 },
+            'S' => KeyCode{ .F = 4 },
             else => return error.CouldNotParse,
         };
     } else {
@@ -253,9 +262,16 @@ fn parseLegacyCSI(buff: []const u8) !?KeyEvent {
             6 => KeyCode.PageDown,
             15 => KeyCode{ .F = 5 },
             // This will not work because  17 (and 18,19,20 etc) is not a character.. Sigh
-            17...21 => |v| KeyCode{ .F = v - 11 },
-            23...24 => |v| KeyCode{ .F = v - 12 },
+            17...21 => |v| out: {
+                const val: u8 = @truncate(v - 11);
+                break :out KeyCode{ .F = val };
+            },
+            23...24 => |v| out: {
+                const val: u8 = @truncate(v - 12);
+                break :out KeyCode{ .F = val };
+            },
             29 => KeyCode.Menu,
+            57427 => KeyCode.KeypadBegin,
             else => return error.CouldNotParse,
         };
     }
@@ -341,7 +357,6 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
 
 fn parseUnicodeEvents(codepoint: []const u8) !KeyCode {
     const parsed = try std.fmt.parseInt(u16, codepoint, 10);
-    std.log.warn("Parsed this input {d}\n", .{parsed});
     return switch (parsed) {
         27 => KeyCode.Esc, // ESCAPE
         13 => KeyCode.Enter, // ENTER
@@ -365,13 +380,13 @@ fn parseUnicodeEvents(codepoint: []const u8) !KeyCode {
         57399...57408 => |c| output: {
             // SAFTEY: This is Safe because c will always be in a range where delta is < 10
             const delta: u8 = @truncate(c - 57399);
-            break :output KeyCode{ .Char = '0' + delta };
+            break :output KeyCode{ .KpKey = '0' + delta };
         }, // KP_0
-        57409 => KeyCode{ .Char = '.' }, // KP_DECIMAL
-        57410 => KeyCode{ .Char = '/' }, // KP_DIVIDE
-        57411 => KeyCode{ .Char = '*' }, // KP_MULTIPLY
-        57412 => KeyCode{ .Char = '-' }, // KP_SUBTRACT
-        57413 => KeyCode{ .Char = '+' }, // KP_ADD
+        57409 => KeyCode{ .KpKey = '.' }, // KP_DECIMAL
+        57410 => KeyCode{ .KpKey = '/' }, // KP_DIVIDE
+        57411 => KeyCode{ .KpKey = '*' }, // KP_MULTIPLY
+        57412 => KeyCode{ .KpKey = '-' }, // KP_SUBTRACT
+        57413 => KeyCode{ .KpKey = '+' }, // KP_ADD
         57414 => KeyCode.Enter, // KP_ENTER
         57415 => KeyCode{ .Char = '=' }, // KP_EQUAL
         // This is how Crossterm does it, but... Not really localized, maybe we ought to localize?

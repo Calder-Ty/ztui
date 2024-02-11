@@ -274,6 +274,7 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
     var modifier: KeyModifier = undefined;
     var codepoint: []const u8 = undefined;
     var alternates = AlternateKeyCodes{};
+    var action: ?keycodes.KeyAction = null;
 
     var token_stream = std.mem.splitSequence(u8, buff[2..], ";");
     const codepoint_section = token_stream.first();
@@ -309,6 +310,13 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
 
         var modifier_seq = std.mem.splitSequence(u8, mod_section, ":");
         modifier = parseModifier(modifier_seq.first()[0]);
+        if (modifier_seq.next()) |act| {
+            action = switch (act[0]) {
+                '2' => keycodes.KeyAction.repeat,
+                '3' => keycodes.KeyAction.release,
+                else => keycodes.KeyAction.press,
+            };
+        }
         // TODO: Handle KeyPress Events as well
         // ALSO, The docs seem to indicate that A should be sent in this form.
         // We are not expecting it. We'll need to build a simple tool
@@ -328,7 +336,7 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
         return error.CouldNotParse;
     };
 
-    return KeyEvent{ .code = code, .modifier = modifier, .alternate = alternates };
+    return KeyEvent{ .code = code, .modifier = modifier, .alternate = alternates, .action = action };
 }
 
 fn parseUnicodeEvents(codepoint: []const u8) !KeyCode {
@@ -486,11 +494,13 @@ inline fn parseModifier(mod: u8) KeyModifier {
 test "parse event 'A'" {
     testing.refAllDecls(@This());
     const res = try parseEvent(&[_]u8{'A'}, false);
-    try testing.expect(std.meta.eql(res.?, KeyEvent{ .code = KeyCode{ .Char = 'A' }, .modifier = KeyModifier{} }));
+    try testing.expect(std.meta.eql(res.?, KeyEvent{
+        .code = KeyCode{ .Char = 'A' },
+        .modifier = KeyModifier{},
+    }));
 }
 
 test "parse event 'A' with alternate key reporting" {
-    testing.refAllDecls(@This());
     const res = try parseEvent("\x1b[a:A;\x02u", false);
     try testing.expect(std.meta.eql(res.?, KeyEvent{
         .code = KeyCode{ .Char = 'a' },
@@ -500,9 +510,21 @@ test "parse event 'A' with alternate key reporting" {
 }
 
 test "parse event '󱫎'" {
-    testing.refAllDecls(@This());
     const res2 = try parseEvent("󱫎", false);
-    try testing.expect(std.meta.eql(res2.?, KeyEvent{ .code = KeyCode{ .Char = '󱫎' }, .modifier = KeyModifier{} }));
+    try testing.expect(std.meta.eql(res2.?, KeyEvent{
+        .code = KeyCode{ .Char = '󱫎' },
+        .modifier = KeyModifier{},
+    }));
+}
+
+test "parse event type" {
+    const res = try parseEvent("\x1b[a:A;\x02:2u", false);
+    try testing.expect(std.meta.eql(res.?, KeyEvent{
+        .code = KeyCode{ .Char = 'a' },
+        .modifier = KeyModifier.shift(),
+        .action = .repeat,
+        .alternate = AlternateKeyCodes{ .shifted_key = KeyCode{ .Char = 'A' } },
+    }));
 }
 
 test "parse escape sequence" {

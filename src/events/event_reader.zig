@@ -16,41 +16,53 @@ const KeyModifier = keycodes.KeyModifier;
 
 const READER_BUF_SIZE = 1024;
 
-const ReadOut = struct { [READER_BUF_SIZE]u8, usize };
-
 /// Read Input and generate an Event stream
 pub const EventReader = struct {
-    event_buffer: event_queue.RingBuffer(KeyCode, READER_BUF_SIZE),
+    raw_buffer: event_queue.RingBuffer(u8, READER_BUF_SIZE),
 
     pub fn init() EventReader {
-        const event_buffer = event_queue.RingBuffer(KeyCode, READER_BUF_SIZE).init();
-        return EventReader{ .event_buffer = event_buffer };
+        const raw_buffer = event_queue.RingBuffer(u8, READER_BUF_SIZE).init();
+        return EventReader{ .raw_buffer = raw_buffer };
     }
 
-    // Read values from stdin
-    pub fn read() !ReadOut {
-        var inbuff = [_]u8{0} ** READER_BUF_SIZE;
+    // Read an event from stdin. Blocks.
+    pub fn readEvent(allocator: std.mem.Allocator, self: *EventReader) !KeyEvent {
         const stdin = io.getStdIn();
+        var inbuff = [_]u8{0} ** READER_BUF_SIZE;
+        // TODO: Make this some sort of polling with timeout
         const n = try stdin.read(&inbuff);
-        return .{ inbuff, n };
+        try self.raw_buffer.pushBuffer(inbuff[0..n]);
+        return self.nextEvent(allocator, false);
     }
 
-    fn parseEvents(inbuff: []u8, more: bool) void {
-        var start = 0;
+    /// Parse the In Buffer
+    /// Panics on Allocator Error
+    fn nextEvent(self: *EventReader, allocator: std.mem.Allocator, more: bool) ?KeyEvent {
         var more_available = more;
-        var offset = 0;
-        for (inbuff, 1..) |byte, i| {
-            _ = byte;
-            more_available = i < inbuff.len or more;
+        var offset: usize = 1;
+        // Most Events will not be more than 16 bytes long, I assume;
+        var inbuff = std.ArrayList(u8).initCapacity(allocator, 16) catch {
+            @panic("Allocation Error");
+        };
+        defer inbuff.deinit();
 
-            offset = i - start;
+        while (self.raw_buffer.pop()) |byte| : (offset += 1) {
+            more_available = offset < self.raw_buffer.count or more;
+            inbuff.append(byte) catch @panic("Allocation Error");
+            // TODO: Since we are just using an ArrayList now, all that @memcopy that this does
+            // could be done simpler by just peeking the value into the inbuff. Worth a thought.
 
-            const res = parseEvent(inbuff[start .. start + offset], more_available) catch {
-                start = i - 1;
+            const res = parseEvent(inbuff.items, more_available) catch {
+                // Cannot parse this set of bytes as an event, lets shift over
+                _ = inbuff.orderedRemove(0);
                 continue;
             };
-            _ = res;
+            if (res) |event| {
+                // TODO: drain the buffer
+                return event;
+            }
         }
+        return null;
     }
 };
 
@@ -134,6 +146,8 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?KeyEvent {
         0x20 => return KeyEvent{ .code = KeyCode{ .Char = ' ' }, .modifier = KeyModifier{} },
         0x7F => return KeyEvent{ .code = KeyCode.Backspace, .modifier = KeyModifier{} },
         else => {
+            // **Note** This is needed if progressive enhancement 0b1000 has been sent (Send
+            // All keys as escape codes)
             const char = try parseUtf8Char(parse_buffer);
             if (char) |c| {
                 return KeyEvent{ .code = KeyCode{ .Char = c }, .modifier = KeyModifier{} };
@@ -186,12 +200,14 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
             'E' => KeyEvent{ .code = KeyCode.KeypadBegin, .modifier = KeyModifier{} },
             'H' => KeyEvent{ .code = KeyCode.Home, .modifier = KeyModifier{} },
             'F' => KeyEvent{ .code = KeyCode.End, .modifier = KeyModifier{} },
-            else => return error.CouldNotParse,
+            else => return null,
         };
     } else if (buff[2] == '1' or buff[buff.len - 1] == '~') {
         event = try parseLegacyCSI(buff);
-    } else {
+    } else if (buff[buff.len - 1] == 'u') {
         event = try parseKKPCSI(buff);
+    } else {
+        return null;
     }
     return event;
 }
@@ -215,6 +231,10 @@ fn parseLegacyCSI(buff: []const u8) !?KeyEvent {
 
     if (modifier_and_term) |modifier_plus| {
         // The first byte is what caries the modifier
+        if (modifier_plus.len == 0) {
+            // We havn't gotten the modifier yet, but we should have
+            return null;
+        }
         modifier = parseModifier(modifier_plus[0]);
     } else {
         // Then possibly we are in the minimal Form 2 (i.e CSI {ABCDHF})
@@ -621,4 +641,18 @@ test "parse c0 codes to standard representation" {
 test "parse Extended Keyboard Events" {
     const result = try parseEvent("\x1b[57428u", false);
     try testing.expect(std.meta.eql(KeyEvent{ .code = KeyCode{ .Media = .Play }, .modifier = KeyModifier{} }, result.?));
+}
+
+test "nextEvent works how I expect" {
+    const allocator = std.testing.allocator;
+    const event_stream = "\x1BOD\x1B[1;\x02D";
+    var rb = event_queue.RingBuffer(u8, READER_BUF_SIZE).init();
+    for (event_stream) |byte| {
+        try rb.push(byte);
+    }
+    var reader = EventReader{ .raw_buffer = rb };
+    const event = reader.nextEvent(allocator, false);
+    try testing.expect(std.meta.eql(event.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{} }));
+    const event2 = reader.nextEvent(allocator, false);
+    try testing.expect(std.meta.eql(event2.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{ .shift = true } }));
 }

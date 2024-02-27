@@ -4,6 +4,7 @@
 //!
 
 const std = @import("std");
+const builtin = @import("builtin");
 const keycodes = @import("keyevents.zig");
 const event_queue = @import("event_queue.zig");
 const testing = std.testing;
@@ -25,19 +26,27 @@ pub const EventReader = struct {
         return EventReader{ .raw_buffer = raw_buffer };
     }
 
-    // Read an event from stdin. Blocks.
-    pub fn readEvent(allocator: std.mem.Allocator, self: *EventReader) !KeyEvent {
+    // Poll stdin for events. Not using std.Poller because it's more general than I need.
+    // Return's true when reader has events ready to parse
+    pub fn poll(self: *EventReader, allocator: std.mem.Allocator, timeout_ms: i32) !bool {
+        _ = timeout_ms;
         const stdin = io.getStdIn();
         var inbuff = [_]u8{0} ** READER_BUF_SIZE;
-        // TODO: Make this some sort of polling with timeout
-        const n = try stdin.read(&inbuff);
-        try self.raw_buffer.pushBuffer(inbuff[0..n]);
-        return self.nextEvent(allocator, false);
+        var poller = std.io.poll(allocator, enum { stdin }, .{ .stdin = stdin });
+        defer poller.deinit();
+        const isReady = try poller.poll();
+        if (isReady) {
+            const n = poller.fifo(.stdin).read(&inbuff);
+            try self.raw_buffer.pushBuffer(inbuff[0..n]);
+            return true;
+        }
+        // FIXME: Do error handling
+        return false;
     }
 
     /// Parse the In Buffer
     /// Panics on Allocator Error
-    fn nextEvent(self: *EventReader, allocator: std.mem.Allocator, more: bool) ?KeyEvent {
+    pub fn next(self: *EventReader, allocator: std.mem.Allocator, more: bool) ?KeyEvent {
         var more_available = more;
         var offset: usize = 1;
         // Most Events will not be more than 16 bytes long, I assume;
@@ -62,6 +71,7 @@ pub const EventReader = struct {
                 return event;
             }
         }
+        // There is nothing to parse
         return null;
     }
 };

@@ -71,4 +71,23 @@ pub fn build(b: *std.Build) void {
 
     const run_step = b.step("example", "run example");
     run_step.dependOn(&build_example.step);
+
+    // Build Example for Demonstration and Testing
+    const echo = b.addExecutable(.{
+        .name = "echo-events",
+        .root_source_file = .{ .path = "src/echo-events.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    echo.addModule("ztui", ztui_mod);
+
+    const build_echo = b.addRunArtifact(echo);
+    build_echo.step.dependOn(b.getInstallStep());
+
+    if (b.args) |args| {
+        build_echo.addArgs(args);
+    }
+
+    const run_echo = b.step("echo", "run echo example");
+    run_echo.dependOn(&build_echo.step);
 }

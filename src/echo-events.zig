@@ -9,7 +9,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
     for (0..10) |_| {
         var reader = event_reader.EventReader.init();
-        if (try reader.poll(allocator, 100)) {
+        if (try reader.poll(allocator)) {
             while (reader.next(allocator, true)) |event| {
                 std.debug.print("Event: {?}\n", .{event});
             }

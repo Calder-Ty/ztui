@@ -28,8 +28,7 @@ pub const EventReader = struct {
 
     // Poll stdin for events. Not using std.Poller because it's more general than I need.
     // Return's true when reader has events ready to parse
-    pub fn poll(self: *EventReader, allocator: std.mem.Allocator, timeout_ms: i32) !bool {
-        _ = timeout_ms;
+    pub fn poll(self: *EventReader, allocator: std.mem.Allocator) !bool {
         const stdin = io.getStdIn();
         var inbuff = [_]u8{0} ** READER_BUF_SIZE;
         var poller = std.io.poll(allocator, enum { stdin }, .{ .stdin = stdin });
@@ -225,15 +224,12 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
 // Parses the Legacy Characters form CSI
 fn parseLegacyCSI(buff: []const u8) !?KeyEvent {
     // Legacy CSI Key codes have two major forms:
-    // Form 1: CSI number ; modifier ~
-    // Form 2: CSI [1 ; modifier] {ABCDHF}
-    //
-    // The docs specify that there are more valid Terminating values for Form 2, but
-    // Then they don't actually show any keys mapped to those values. I belive
-    // This is an oversight on the documentations end
+    // CSI number [; modifier] ~
+    // CSI [1 ; modifier] {ABCDEFHPQS}
 
     var code: KeyCode = undefined;
-    var modifier: KeyModifier = undefined;
+    var codepoint: u16 = undefined;
+    var modifier: KeyModifier = KeyModifier{};
 
     var token_stream = std.mem.splitSequence(u8, buff[2..], ";");
     const number = token_stream.first();
@@ -242,27 +238,21 @@ fn parseLegacyCSI(buff: []const u8) !?KeyEvent {
     if (modifier_and_term) |modifier_plus| {
         // The first byte is what caries the modifier
         if (modifier_plus.len == 0) {
-            // We havn't gotten the modifier yet, but we should have
+            // We havn't gotten the modifier yet
             return null;
         }
         modifier = parseModifier(modifier_plus[0]);
+        codepoint = try std.fmt.parseInt(u16, number, 10);
+    } else if (buff[buff.len - 1] == '~') {
+        // Form 1 sans modifier
+        codepoint = try std.fmt.parseInt(u16, number[0 .. number.len - 1], 10);
     } else {
-        // Then possibly we are in the minimal Form 2 (i.e CSI {ABCDHF})
-        code = switch (buff[buff.len - 1]) {
-            'A' => KeyCode.Up,
-            'B' => KeyCode.Down,
-            'C' => KeyCode.Right,
-            'D' => KeyCode.Left,
-            'E' => KeyCode.KeypadBegin,
-            'H' => KeyCode.Home,
-            'F' => KeyCode.End,
-            'P' => KeyCode{ .F = 1 },
-            'Q' => KeyCode{ .F = 2 },
-            'S' => KeyCode{ .F = 4 },
-            else => return error.CouldNotParse,
-        };
+        // Form 2 sans modifier. Per the spec there is actually no codepoint
+        // available to be read when modifiers are not present, but in order to
+        // keep the logic the same, we will assign the codepoint that is implied.
+        codepoint = 1;
     }
-    const codepoint = try std.fmt.parseInt(u16, number, 10);
+
     if (codepoint == 1) {
         // In this Case we are expecting Form 2 of the Legacy Functional keys
         // CSI 1 ; Modifier { ABCDFH } So there needs to be 6 bytes
@@ -584,6 +574,12 @@ test "parse csi" {
     try testing.expect(std.meta.eql(res.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{ .shift = true } }));
 }
 
+test "parse csi F5" {
+    const input = "\x1B[15~";
+    const res = try parseEvent(input[0..], false);
+    try testing.expectEqual(res.?, KeyEvent{ .code = KeyCode{ .F = 5 }, .modifier = KeyModifier{} });
+}
+
 test "parse ss3" {
     const keys = [_]u8{ 'A', 'B', 'C', 'D', 'F', 'H', 'P', 'Q', 'R', 'S' };
     const codes = [_]KeyCode{
@@ -653,7 +649,7 @@ test "parse Extended Keyboard Events" {
     try testing.expect(std.meta.eql(KeyEvent{ .code = KeyCode{ .Media = .Play }, .modifier = KeyModifier{} }, result.?));
 }
 
-test "nextEvent works how I expect" {
+test "EventReader.next() works how I expect" {
     const allocator = std.testing.allocator;
     const event_stream = "\x1BOD\x1B[1;\x02D";
     var rb = event_queue.RingBuffer(u8, READER_BUF_SIZE).init();
@@ -661,8 +657,8 @@ test "nextEvent works how I expect" {
         try rb.push(byte);
     }
     var reader = EventReader{ .raw_buffer = rb };
-    const event = reader.nextEvent(allocator, false);
+    const event = reader.next(allocator, false);
     try testing.expect(std.meta.eql(event.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{} }));
-    const event2 = reader.nextEvent(allocator, false);
+    const event2 = reader.next(allocator, false);
     try testing.expect(std.meta.eql(event2.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{ .shift = true } }));
 }

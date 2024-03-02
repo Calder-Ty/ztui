@@ -211,7 +211,7 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
             'F' => KeyEvent{ .code = KeyCode.End, .modifier = KeyModifier{} },
             else => return null,
         };
-    } else if (buff[2] == '1' or buff[buff.len - 1] == '~') {
+    } else if (isMember(buff[buff.len - 1], "~ABCDEFHPQS")) {
         event = try parseLegacyCSI(buff);
     } else if (buff[buff.len - 1] == 'u') {
         event = try parseKKPCSI(buff);
@@ -219,6 +219,15 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
         return null;
     }
     return event;
+}
+
+fn isMember(value: u8, comptime group: []const u8) bool {
+    for (group) |g| {
+        if (value == g) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Parses the Legacy Characters form CSI
@@ -661,4 +670,19 @@ test "EventReader.next() works how I expect" {
     try testing.expect(std.meta.eql(event.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{} }));
     const event2 = reader.next(allocator, false);
     try testing.expect(std.meta.eql(event2.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{ .shift = true } }));
+}
+
+test "Legacy Codes do not report `~`" {
+    const allocator = std.testing.allocator;
+    const event_stream = "\x1B[15;\x02~";
+    var rb = event_queue.RingBuffer(u8, READER_BUF_SIZE).init();
+    for (event_stream) |byte| {
+        try rb.push(byte);
+    }
+    var reader = EventReader{ .raw_buffer = rb };
+    const event = reader.next(allocator, false);
+    const expected = KeyEvent{ .code = KeyCode{ .F = 5 }, .modifier = KeyModifier{ .shift = true } };
+    try testing.expectEqualDeep(expected, event.?);
+    const event2 = reader.next(allocator, false);
+    try testing.expect(null == event2);
 }

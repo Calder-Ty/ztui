@@ -15,6 +15,7 @@ const KeyEvent = keycodes.KeyEvent;
 const KeyCode = keycodes.KeyCode;
 const KeyModifier = keycodes.KeyModifier;
 
+const CSI = "\x1B[";
 const READER_BUF_SIZE = 1024;
 
 /// Read Input and generate an Event stream
@@ -173,7 +174,6 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
     // Key Sequences like this are of mode:
     //      CSI unicode-key-code:alternate-key-codes ; modifiers:event-type ; text-as-codepoints [u~]
     //
-    // TODO:Make this bytesequence a constant
     // CSI is the byte_sequence "\x1B["
     //
     // In the general case. Some of these fields are optional
@@ -190,7 +190,7 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
     // TODO: Do the text-as-codepoints part
     // Text Codepoints are a progressive enhancement, Let's ingore them for now
 
-    std.debug.assert(std.mem.eql(u8, buff[0..2], &[_]u8{ 0x1B, '[' }));
+    std.debug.assert(std.mem.eql(u8, buff[0..2], CSI));
 
     // Early return if there are not enough bytes, we'll go back to get more
     if (buff.len == 2) {
@@ -545,7 +545,7 @@ test "parse event 'A'" {
 }
 
 test "parse event 'A' with alternate key reporting" {
-    const res = try parseEvent("\x1b[a:A;\x02u", false);
+    const res = try parseEvent("\x1B[a:A;\x02u", false);
     try testing.expect(std.meta.eql(res.?, KeyEvent{
         .code = KeyCode{ .Char = 'a' },
         .modifier = KeyModifier.shift(),
@@ -562,7 +562,7 @@ test "parse event '󱫎'" {
 }
 
 test "parse event type" {
-    const res = try parseEvent("\x1b[a:A;\x02:2u", false);
+    const res = try parseEvent("\x1B[a:A;\x02:2u", false);
     try testing.expect(std.meta.eql(res.?, KeyEvent{
         .code = KeyCode{ .Char = 'a' },
         .modifier = KeyModifier.shift(),
@@ -654,7 +654,7 @@ test "parse c0 codes to standard representation" {
 }
 
 test "parse Extended Keyboard Events" {
-    const result = try parseEvent("\x1b[57428u", false);
+    const result = try parseEvent("\x1B[57428u", false);
     try testing.expect(std.meta.eql(KeyEvent{ .code = KeyCode{ .Media = .Play }, .modifier = KeyModifier{} }, result.?));
 }
 

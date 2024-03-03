@@ -68,6 +68,7 @@ pub const EventReader = struct {
             };
             if (res) |event| {
                 // TODO: drain the buffer
+                // std.debug.print("Triggering sequence: {?}", .{inbuff});
                 return event;
             }
         }
@@ -250,7 +251,8 @@ fn parseLegacyCSI(buff: []const u8) !?KeyEvent {
             // We havn't gotten the modifier yet
             return null;
         }
-        modifier = parseModifier(modifier_plus[0]);
+        const m = try std.fmt.parseInt(u9, modifier_plus[0 .. modifier_plus.len - 1], 10);
+        modifier = parseModifier(m);
         codepoint = try std.fmt.parseInt(u16, number, 10);
     } else if (buff[buff.len - 1] == '~') {
         // Form 1 sans modifier
@@ -308,7 +310,7 @@ fn parseLegacyCSI(buff: []const u8) !?KeyEvent {
 }
 
 fn parseKKPCSI(buff: []const u8) !?KeyEvent {
-    // GENERAL: CSI unicode-key-code[:alternate-key-codes] ; [modifiers:event-type] ; [text-as-codepoints] u
+    // GENERAL: CSI unicode-key-code[[:alternate-key-codes] [; modifiers:event-type] ; [text-as-codepoints]] u
     // SPECIAL: CSI unicode-key-code u
     if (buff[buff.len - 1] != 'u') {
         // FIXME: How do we stop it from looping forever on the input hoping for more bytes?
@@ -354,7 +356,11 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
         }
 
         var modifier_seq = std.mem.splitSequence(u8, mod_section, ":");
-        modifier = parseModifier(modifier_seq.first()[0]);
+        // Find out if the final character is u, and exclude it if so
+        const mod = modifier_seq.first();
+        const end = if (mod[mod.len - 1] == 'u') mod.len - 1 else mod.len;
+        const m = try std.fmt.parseInt(u9, mod[0..end], 10);
+        modifier = parseModifier(m);
         if (modifier_seq.next()) |act| {
             action = switch (act[0]) {
                 '2' => keycodes.KeyAction.repeat,
@@ -529,10 +535,13 @@ fn parseUtf8Char(buff: []const u8) !?u21 {
     };
 }
 
-inline fn parseModifier(mod: u8) KeyModifier {
+inline fn parseModifier(mod: u9) KeyModifier {
     // Kitty protocol, modifier base state is 1, so we need to subract one
     const modifier = mod - 1;
-    return @bitCast(modifier);
+    std.debug.assert(0b100000000 & modifier == 0);
+    // Truncating is safe because there is no valid bit pattern for the 9th bit
+    const m: u8 = @truncate(modifier);
+    return @bitCast(m);
 }
 
 test "parse event 'A'" {
@@ -545,7 +554,7 @@ test "parse event 'A'" {
 }
 
 test "parse event 'A' with alternate key reporting" {
-    const res = try parseEvent("\x1B[a:A;\x02u", false);
+    const res = try parseEvent("\x1B[a:A;2u", false);
     try testing.expect(std.meta.eql(res.?, KeyEvent{
         .code = KeyCode{ .Char = 'a' },
         .modifier = KeyModifier.shift(),
@@ -562,7 +571,7 @@ test "parse event '󱫎'" {
 }
 
 test "parse event type" {
-    const res = try parseEvent("\x1B[a:A;\x02:2u", false);
+    const res = try parseEvent("\x1B[a:A;2:2u", false);
     try testing.expect(std.meta.eql(res.?, KeyEvent{
         .code = KeyCode{ .Char = 'a' },
         .modifier = KeyModifier.shift(),
@@ -578,7 +587,7 @@ test "parse escape sequence" {
 }
 
 test "parse csi" {
-    const input = "\x1B[1;\x02D";
+    const input = "\x1B[1;2D";
     const res = try handleCSI(input[0..]);
     try testing.expect(std.meta.eql(res.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{ .shift = true } }));
 }
@@ -660,7 +669,7 @@ test "parse Extended Keyboard Events" {
 
 test "EventReader.next() works how I expect" {
     const allocator = std.testing.allocator;
-    const event_stream = "\x1BOD\x1B[1;\x02D";
+    const event_stream = "\x1BOD\x1B[1;2D";
     var rb = event_queue.RingBuffer(u8, READER_BUF_SIZE).init();
     for (event_stream) |byte| {
         try rb.push(byte);
@@ -674,7 +683,7 @@ test "EventReader.next() works how I expect" {
 
 test "Legacy Codes do not report `~`" {
     const allocator = std.testing.allocator;
-    const event_stream = "\x1B[15;\x02~";
+    const event_stream = "\x1B[15;2~";
     var rb = event_queue.RingBuffer(u8, READER_BUF_SIZE).init();
     for (event_stream) |byte| {
         try rb.push(byte);

@@ -17,6 +17,52 @@ const KeyModifier = keycodes.KeyModifier;
 
 const CSI = "\x1B[";
 const READER_BUF_SIZE = 1024;
+const ESC = '\x1B';
+
+/// Value to push on to stack to request Progressive enhancements of
+/// keyboard protocol, from simply legacy to adding more KKP features.
+///
+/// Should be pushed onto terminal stack at the beginning of program
+/// and popped off of stack at end of program.
+pub const ProgressiveEnhancements = packed struct(u8) {
+    /// Fix the problem that some legacy key press encodings overlap
+    /// with other control codes. (eg `Esc` and the first byte of an escape code)
+    disambiguate_escape_codes: bool = false,
+    /// Report the event type (press, release, hold).
+    report_event_types: bool = false,
+    /// Report alternate keys (such as A when <S-a> is pressed)
+    report_alternate_keys: bool = false,
+    /// No naked text will be sent, all key presses will be reported as escape
+    /// codes, including Enter, Tab, and Backspace
+    report_all_keys_as_escapecodes: bool = false,
+    // Currently Reporting associated text is not a supported enhancement by the library.
+    // We reserve 1 bit as a placeholder for it.
+    // report_associated_text: bool,
+    _reserved: u4 = 0,
+};
+
+/// Push the Progressive enhancements onto the stack. Should be done at the end of the program
+/// if enhancements were pushed onto the terminal stack. Also if using Alternate Screen then
+/// should be done after alternate screen is entered.
+pub fn pushProgressiveEnhancements(flags: ProgressiveEnhancements) !void {
+    const stdout = io.getStdOut();
+    // SAFTEY: ProgressiveEnhancements can only be at most a u5, so we can limit this buffer
+    // to 2 digits
+    var flags_buf = [_]u8{ 0, 0 };
+    const flags_fmt = try std.fmt.bufPrint(&flags_buf, "{d}", .{@as(u8, @bitCast(flags))});
+    // \x1B, [, >, \d, _, u (at most 6 bytes)
+    var outbuf = [_]u8{ 0, 0, 0, 0, 0, 0 };
+    const out_fmt = try std.fmt.bufPrint(&outbuf, "\x1b[>{s}u", .{flags_fmt});
+    _ = try stdout.write(out_fmt);
+}
+
+/// Pop the Progressive enhancements from the stack. Should be done at the end of the program
+/// if enhancements were pushed onto the terminal stack. Also If using Alternate Screen then
+/// should be done before alternate screen is exited.
+pub fn popProgressiveEnhancements() !void {
+    const stdout = io.getStdOut();
+    _ = try stdout.write("\x1B[<u");
+}
 
 /// Read Input and generate an Event stream
 pub const EventReader = struct {

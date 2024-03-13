@@ -14,40 +14,39 @@ const AlternateKeyCodes = keycodes.AlternateKeyCodes;
 const KeyEvent = keycodes.KeyEvent;
 const KeyCode = keycodes.KeyCode;
 const KeyModifier = keycodes.KeyModifier;
+const ProgressiveEnhancements = @import("kkp_enahancements.zig").ProgressiveEnhancements;
 
 const CSI = "\x1B[";
 const READER_BUF_SIZE = 1024;
 const ESC = '\x1B';
 
-/// Value to push on to stack to request Progressive enhancements of
-/// keyboard protocol, from simply legacy to adding more KKP features.
-///
-/// Should be pushed onto terminal stack at the beginning of program
-/// and popped off of stack at end of program.
-pub const ProgressiveEnhancements = packed struct(u8) {
-    /// Fix the problem that some legacy key press encodings overlap
-    /// with other control codes. (eg `Esc` and the first byte of an escape code)
-    disambiguate_escape_codes: bool = false,
-    /// Report the event type (press, release, hold).
-    report_event_types: bool = false,
-    /// Report alternate keys (such as A when <S-a> is pressed)
-    report_alternate_keys: bool = false,
-    /// No naked text will be sent, all key presses will be reported as escape
-    /// codes, including Enter, Tab, and Backspace
-    report_all_keys_as_escapecodes: bool = false,
-    // Currently Reporting associated text is not a supported enhancement by the library.
-    // We reserve 1 bit as a placeholder for it.
-    // report_associated_text: bool,
-    _reserved: u4 = 0,
+const ReaderEventTag = enum {
+    key_event,
+    progressive_enhancement,
 };
+
+/// Internal ReaderEvent so that we can use one reader to parse differnt kinds
+/// of events. Generally only KeyEvents should be reported to the user.
+const ReaderEvent = union(ReaderEventTag) {
+    key_event: KeyEvent,
+    progressive_enhancement: ProgressiveEnhancements,
+};
+
+/// Queries terminal to find support for progressive enhancements
+pub fn detectProgressivEnhancementSupport() !void {
+    // KKP says to use the query for current flags, and then
+    // send a query for the Primary Device Attribute.
+    const query = "\x1B[?u\x1B[c";
+    _ = query;
+}
 
 /// Push the Progressive enhancements onto the stack. Should be done at the end of the program
 /// if enhancements were pushed onto the terminal stack. Also if using Alternate Screen then
 /// should be done after alternate screen is entered.
 pub fn pushProgressiveEnhancements(flags: ProgressiveEnhancements) !void {
     const stdout = io.getStdOut();
-    // SAFTEY: ProgressiveEnhancements can only be at most a u5, so we can limit this buffer
-    // to 2 digits
+    // SAFTEY: ProgressiveEnhancements can only be at most a 5bit integer
+    // (stored in 1 byte), so we can limit this buffer to 2 digits
     var flags_buf = [_]u8{ 0, 0 };
     const flags_fmt = try std.fmt.bufPrint(&flags_buf, "{d}", .{@as(u8, @bitCast(flags))});
     // \x1B, [, >, \d, _, u (at most 6 bytes)
@@ -92,7 +91,7 @@ pub const EventReader = struct {
 
     /// Parse the In Buffer
     /// Panics on Allocator Error
-    pub fn next(self: *EventReader, allocator: std.mem.Allocator, more: bool) ?KeyEvent {
+    pub fn next(self: *EventReader, allocator: std.mem.Allocator, more: bool) ?ReaderEvent {
         var more_available = more;
         var offset: usize = 1;
         // Most Events will not be more than 16 bytes long, I assume;
@@ -114,6 +113,7 @@ pub const EventReader = struct {
             };
             if (res) |event| {
                 // TODO: drain the buffer
+                //
                 // std.debug.print("Triggering sequence: {?}", .{inbuff});
                 return event;
             }
@@ -123,7 +123,7 @@ pub const EventReader = struct {
     }
 };
 
-fn parseEvent(parse_buffer: []const u8, more: bool) !?KeyEvent {
+fn parseEvent(parse_buffer: []const u8, more: bool) !?ReaderEvent {
 
     // For Legacy Encoding there are 3 Forms we look out for that we want to make sure we
     // handle for escaped events:
@@ -143,7 +143,12 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?KeyEvent {
                     // Possible Esc sequence
                     return null;
                 } else {
-                    return KeyEvent{ .code = KeyCode.Esc, .modifier = KeyModifier{} };
+                    return ReaderEvent{
+                        .key_event = KeyEvent{
+                            .code = KeyCode.Esc,
+                            .modifier = KeyModifier{},
+                        },
+                    };
                 }
             } else {
                 return switch (parse_buffer[1]) {
@@ -151,11 +156,14 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?KeyEvent {
                     'O' => try handleSS3Code(parse_buffer),
                     '[' => handleCSI(parse_buffer),
                     // Sometimes an Escape, is just an Escape...with an alt?
-                    0x1B => KeyEvent{ .code = KeyCode.Esc, .modifier = KeyModifier.alt() },
+                    0x1B => ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Esc, .modifier = KeyModifier.alt() } },
                     else => {
                         var event = try parseEvent(parse_buffer[1..], more);
                         if (event) |*alt_event| {
-                            alt_event.*.modifier.alt = true;
+                            switch (alt_event.*) {
+                                ReaderEventTag.key_event => |*ke| ke.*.modifier.alt = true,
+                                else => {},
+                            }
                             return event;
                         }
                         return null;
@@ -178,36 +186,36 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?KeyEvent {
         // in raw mode we can ignore \n.
         // FIXME: Before releasing this as a library (if we do that), we will need to fix this.
 
-        0x0 => return KeyEvent{ .code = KeyCode{ .Char = ' ' }, .modifier = KeyModifier.control() },
+        0x0 => return ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = ' ' }, .modifier = KeyModifier.control() } },
         0x01...0x07, 0x0A...0x0C, 0x0E...0x1A => |c| {
-            return KeyEvent{
+            return ReaderEvent{ .key_event = KeyEvent{
                 .code = KeyCode{ .Char = (c - 0x1 + 'a') },
                 .modifier = KeyModifier.control(),
-            };
+            } };
         },
         // Kity Has this as Backspace, Some terminals won't. I'd rather give up on terminfo and just
         // Use _a_ standard. This appears to be what crossterm-rs decided to do as well.
-        0x08 => return KeyEvent{ .code = KeyCode.Backspace, .modifier = KeyModifier.control() },
-        0x09 => return KeyEvent{ .code = KeyCode.Tab, .modifier = KeyModifier{} },
+        0x08 => return ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Backspace, .modifier = KeyModifier.control() } },
+        0x09 => return ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Tab, .modifier = KeyModifier{} } },
         // 0x0A..0x0C -> Are Already Handled
-        0x0D => return KeyEvent{ .code = KeyCode.Enter, .modifier = KeyModifier{} },
+        0x0D => return ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Enter, .modifier = KeyModifier{} } },
         // 0x0E..0x1B -> Are Already Handled
         0x1C...0x1d => |c| {
-            return KeyEvent{
+            return ReaderEvent{ .key_event = KeyEvent{
                 .code = KeyCode{ .Char = (c - 0x1C + '\\') },
                 .modifier = KeyModifier.control(),
-            };
+            } };
         },
-        0x1E => return KeyEvent{ .code = KeyCode{ .Char = '~' }, .modifier = KeyModifier.control() },
-        0x1F => return KeyEvent{ .code = KeyCode{ .Char = '?' }, .modifier = KeyModifier.control() },
-        0x20 => return KeyEvent{ .code = KeyCode{ .Char = ' ' }, .modifier = KeyModifier{} },
-        0x7F => return KeyEvent{ .code = KeyCode.Backspace, .modifier = KeyModifier{} },
+        0x1E => return ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = '~' }, .modifier = KeyModifier.control() } },
+        0x1F => return ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = '?' }, .modifier = KeyModifier.control() } },
+        0x20 => return ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = ' ' }, .modifier = KeyModifier{} } },
+        0x7F => return ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Backspace, .modifier = KeyModifier{} } },
         else => {
             // **Note** This is needed if progressive enhancement 0b1000 has been sent (Send
             // All keys as escape codes)
             const char = try parseUtf8Char(parse_buffer);
             if (char) |c| {
-                return KeyEvent{ .code = KeyCode{ .Char = c }, .modifier = KeyModifier{} };
+                return ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = c }, .modifier = KeyModifier{} } };
             }
             return null;
         },
@@ -216,7 +224,7 @@ fn parseEvent(parse_buffer: []const u8, more: bool) !?KeyEvent {
 
 /// Handle the CSI Input Sequence and Generate a key event. This handles both legacy and
 /// KKP events
-fn handleCSI(buff: []const u8) !?KeyEvent {
+fn handleCSI(buff: []const u8) !?ReaderEvent {
 
     // Key Sequences like this are of mode:
     //      CSI unicode-key-code:alternate-key-codes ; modifiers:event-type ; text-as-codepoints [u~]
@@ -258,6 +266,8 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
             'F' => KeyEvent{ .code = KeyCode.End, .modifier = KeyModifier{} },
             else => return null,
         };
+    } else if (buff[3] == '?') {
+        // event = try parseProgressivEnhancements(buff);
     } else if (isMember(buff[buff.len - 1], "~ABCDEFHPQS")) {
         event = try parseLegacyCSI(buff);
     } else if (buff[buff.len - 1] == 'u') {
@@ -265,7 +275,11 @@ fn handleCSI(buff: []const u8) !?KeyEvent {
     } else {
         return null;
     }
-    return event;
+    if (event) |ke| {
+        return ReaderEvent{ .key_event = ke };
+    } else {
+        return null;
+    }
 }
 
 fn isMember(value: u8, comptime group: []const u8) bool {
@@ -276,6 +290,10 @@ fn isMember(value: u8, comptime group: []const u8) bool {
     }
     return false;
 }
+
+// fn parseProgressivEnhancements(buff: []const u8) !? {
+// kkp
+// }
 
 // Parses the Legacy Characters form CSI
 fn parseLegacyCSI(buff: []const u8) !?KeyEvent {
@@ -375,7 +393,9 @@ fn parseKKPCSI(buff: []const u8) !?KeyEvent {
     const text_codepoints = token_stream.next();
     _ = text_codepoints;
     if (modifier_section) |mod_section| {
-        // General Case. XXX: We are ignoring text-as-codepoints for now, as we
+        // General Case.
+
+        // XXX: We are ignoring text-as-codepoints for now, as we
         // are not really supporting progressive enhancements at this point.
         // It will be some of the next things we work on.
         var codepoint_seq = std.mem.splitSequence(u8, codepoint_section, ":");
@@ -450,7 +470,7 @@ fn parseUnicodeEvents(codepoint: []const u8) !KeyCode {
         57362 => KeyCode.Pause, // PAUSE
         57363 => KeyCode.Menu, // MENU
         57376...57398 => |c| output: {
-            // SAFTEY: This is Safe because c will always be in a range where delta is < 34
+            // SAFETY: This is Safe because c will always be in a range where delta is < 34
             const delta: u8 = @truncate(c - 57376);
             break :output KeyCode{ .F = 13 + delta };
         }, // F13
@@ -459,7 +479,7 @@ fn parseUnicodeEvents(codepoint: []const u8) !KeyCode {
         // coded with a state parameter, but for now I'll ignore the origin from the KeyPad and we
         // will deal with it later
         57399...57408 => |c| output: {
-            // SAFTEY: This is Safe because c will always be in a range where delta is < 10
+            // SAFETY: This is Safe because c will always be in a range where delta is < 10
             const delta: u8 = @truncate(c - 57399);
             break :output KeyCode{ .KpKey = '0' + delta };
         }, // KP_0
@@ -525,13 +545,13 @@ fn getCodepoint(buff: []const u8) ![]const u8 {
     if (end == 0) {
         return error.CouldNotParse;
     }
-    // TODO: IS THIS SAFE?
+    // WARN: IS THIS SAFE?
     return buff[0..end];
 }
 
 /// Handles SS3 Code
 /// Must only be called when you know the buff begins with {0x1B,'O'}
-fn handleSS3Code(buff: []const u8) !?KeyEvent {
+fn handleSS3Code(buff: []const u8) !?ReaderEvent {
     std.debug.assert(std.mem.eql(u8, buff[0..2], &[_]u8{ 0x1b, 'O' }));
 
     if (buff.len == 2) {
@@ -550,7 +570,7 @@ fn handleSS3Code(buff: []const u8) !?KeyEvent {
             },
             else => return error.CouldNotParse,
         };
-        return KeyEvent{ .code = code, .modifier = KeyModifier{} };
+        return ReaderEvent{ .key_event = KeyEvent{ .code = code, .modifier = KeyModifier{} } };
     }
 }
 
@@ -593,55 +613,55 @@ inline fn parseModifier(mod: u9) KeyModifier {
 test "parse event 'A'" {
     testing.refAllDecls(@This());
     const res = try parseEvent(&[_]u8{'A'}, false);
-    try testing.expect(std.meta.eql(res.?, KeyEvent{
+    try testing.expect(std.meta.eql(res.?, ReaderEvent{ .key_event = KeyEvent{
         .code = KeyCode{ .Char = 'A' },
         .modifier = KeyModifier{},
-    }));
+    } }));
 }
 
 test "parse event 'A' with alternate key reporting" {
     const res = try parseEvent("\x1B[a:A;2u", false);
-    try testing.expect(std.meta.eql(res.?, KeyEvent{
+    try testing.expect(std.meta.eql(res.?, ReaderEvent{ .key_event = KeyEvent{
         .code = KeyCode{ .Char = 'a' },
         .modifier = KeyModifier.shift(),
         .alternate = AlternateKeyCodes{ .shifted_key = KeyCode{ .Char = 'A' } },
-    }));
+    } }));
 }
 
 test "parse event '󱫎'" {
     const res2 = try parseEvent("󱫎", false);
-    try testing.expect(std.meta.eql(res2.?, KeyEvent{
+    try testing.expect(std.meta.eql(res2.?, ReaderEvent{ .key_event = KeyEvent{
         .code = KeyCode{ .Char = '󱫎' },
         .modifier = KeyModifier{},
-    }));
+    } }));
 }
 
 test "parse event type" {
     const res = try parseEvent("\x1B[a:A;2:2u", false);
-    try testing.expect(std.meta.eql(res.?, KeyEvent{
+    try testing.expect(std.meta.eql(res.?, ReaderEvent{ .key_event = KeyEvent{
         .code = KeyCode{ .Char = 'a' },
         .modifier = KeyModifier.shift(),
         .action = .repeat,
         .alternate = AlternateKeyCodes{ .shifted_key = KeyCode{ .Char = 'A' } },
-    }));
+    } }));
 }
 
 test "parse escape sequence" {
     const input = "\x1BOD";
     const res = try parseEvent(input[0..], false);
-    try testing.expect(std.meta.eql(res.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{} }));
+    try testing.expect(std.meta.eql(res.?, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{} } }));
 }
 
 test "parse csi" {
     const input = "\x1B[1;2D";
     const res = try handleCSI(input[0..]);
-    try testing.expect(std.meta.eql(res.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{ .shift = true } }));
+    try testing.expect(std.meta.eql(res.?, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{ .shift = true } } }));
 }
 
 test "parse csi F5" {
     const input = "\x1B[15~";
     const res = try parseEvent(input[0..], false);
-    try testing.expectEqual(res.?, KeyEvent{ .code = KeyCode{ .F = 5 }, .modifier = KeyModifier{} });
+    try testing.expectEqual(res.?, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .F = 5 }, .modifier = KeyModifier{} } });
 }
 
 test "parse ss3" {
@@ -661,45 +681,45 @@ test "parse ss3" {
     inline for (keys, codes) |key, code| {
         const input = [_]u8{ 0x1B, 'O', key };
         const res = try handleSS3Code(input[0..]);
-        try testing.expect(std.meta.eql(res.?, KeyEvent{ .code = code, .modifier = KeyModifier{} }));
+        try testing.expect(std.meta.eql(res.?, ReaderEvent{ .key_event = KeyEvent{ .code = code, .modifier = KeyModifier{} } }));
     }
 }
 
 test "parse c0 codes to standard representation" {
     // 'Standard' Table can be found here https://vt100.net/docs/vt100-ug/chapter3.html
-    const codes = [32]std.meta.Tuple(&.{ u8, KeyEvent }){
-        .{ 0, KeyEvent{ .code = KeyCode{ .Char = ' ' }, .modifier = KeyModifier.control() } },
-        .{ 1, KeyEvent{ .code = KeyCode{ .Char = 'a' }, .modifier = KeyModifier.control() } },
-        .{ 2, KeyEvent{ .code = KeyCode{ .Char = 'b' }, .modifier = KeyModifier.control() } },
-        .{ 3, KeyEvent{ .code = KeyCode{ .Char = 'c' }, .modifier = KeyModifier.control() } },
-        .{ 4, KeyEvent{ .code = KeyCode{ .Char = 'd' }, .modifier = KeyModifier.control() } },
-        .{ 5, KeyEvent{ .code = KeyCode{ .Char = 'e' }, .modifier = KeyModifier.control() } },
-        .{ 6, KeyEvent{ .code = KeyCode{ .Char = 'f' }, .modifier = KeyModifier.control() } },
-        .{ 7, KeyEvent{ .code = KeyCode{ .Char = 'g' }, .modifier = KeyModifier.control() } },
-        .{ 8, KeyEvent{ .code = KeyCode.Backspace, .modifier = KeyModifier.control() } },
-        .{ 9, KeyEvent{ .code = KeyCode.Tab, .modifier = KeyModifier{} } },
-        .{ 10, KeyEvent{ .code = KeyCode{ .Char = 'j' }, .modifier = KeyModifier.control() } },
-        .{ 11, KeyEvent{ .code = KeyCode{ .Char = 'k' }, .modifier = KeyModifier.control() } },
-        .{ 12, KeyEvent{ .code = KeyCode{ .Char = 'l' }, .modifier = KeyModifier.control() } },
-        .{ 13, KeyEvent{ .code = KeyCode.Enter, .modifier = KeyModifier{} } },
-        .{ 14, KeyEvent{ .code = KeyCode{ .Char = 'n' }, .modifier = KeyModifier.control() } },
-        .{ 15, KeyEvent{ .code = KeyCode{ .Char = 'o' }, .modifier = KeyModifier.control() } },
-        .{ 16, KeyEvent{ .code = KeyCode{ .Char = 'p' }, .modifier = KeyModifier.control() } },
-        .{ 17, KeyEvent{ .code = KeyCode{ .Char = 'q' }, .modifier = KeyModifier.control() } },
-        .{ 18, KeyEvent{ .code = KeyCode{ .Char = 'r' }, .modifier = KeyModifier.control() } },
-        .{ 19, KeyEvent{ .code = KeyCode{ .Char = 's' }, .modifier = KeyModifier.control() } },
-        .{ 20, KeyEvent{ .code = KeyCode{ .Char = 't' }, .modifier = KeyModifier.control() } },
-        .{ 21, KeyEvent{ .code = KeyCode{ .Char = 'u' }, .modifier = KeyModifier.control() } },
-        .{ 22, KeyEvent{ .code = KeyCode{ .Char = 'v' }, .modifier = KeyModifier.control() } },
-        .{ 23, KeyEvent{ .code = KeyCode{ .Char = 'w' }, .modifier = KeyModifier.control() } },
-        .{ 24, KeyEvent{ .code = KeyCode{ .Char = 'x' }, .modifier = KeyModifier.control() } },
-        .{ 25, KeyEvent{ .code = KeyCode{ .Char = 'y' }, .modifier = KeyModifier.control() } },
-        .{ 26, KeyEvent{ .code = KeyCode{ .Char = 'z' }, .modifier = KeyModifier.control() } },
-        .{ 27, KeyEvent{ .code = KeyCode.Esc, .modifier = KeyModifier{} } },
-        .{ 28, KeyEvent{ .code = KeyCode{ .Char = '\\' }, .modifier = KeyModifier.control() } },
-        .{ 29, KeyEvent{ .code = KeyCode{ .Char = ']' }, .modifier = KeyModifier.control() } },
-        .{ 30, KeyEvent{ .code = KeyCode{ .Char = '~' }, .modifier = KeyModifier.control() } },
-        .{ 31, KeyEvent{ .code = KeyCode{ .Char = '?' }, .modifier = KeyModifier.control() } },
+    const codes = [32]std.meta.Tuple(&.{ u8, ReaderEvent }){
+        .{ 0, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = ' ' }, .modifier = KeyModifier.control() } } },
+        .{ 1, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'a' }, .modifier = KeyModifier.control() } } },
+        .{ 2, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'b' }, .modifier = KeyModifier.control() } } },
+        .{ 3, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'c' }, .modifier = KeyModifier.control() } } },
+        .{ 4, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'd' }, .modifier = KeyModifier.control() } } },
+        .{ 5, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'e' }, .modifier = KeyModifier.control() } } },
+        .{ 6, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'f' }, .modifier = KeyModifier.control() } } },
+        .{ 7, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'g' }, .modifier = KeyModifier.control() } } },
+        .{ 8, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Backspace, .modifier = KeyModifier.control() } } },
+        .{ 9, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Tab, .modifier = KeyModifier{} } } },
+        .{ 10, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'j' }, .modifier = KeyModifier.control() } } },
+        .{ 11, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'k' }, .modifier = KeyModifier.control() } } },
+        .{ 12, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'l' }, .modifier = KeyModifier.control() } } },
+        .{ 13, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Enter, .modifier = KeyModifier{} } } },
+        .{ 14, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'n' }, .modifier = KeyModifier.control() } } },
+        .{ 15, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'o' }, .modifier = KeyModifier.control() } } },
+        .{ 16, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'p' }, .modifier = KeyModifier.control() } } },
+        .{ 17, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'q' }, .modifier = KeyModifier.control() } } },
+        .{ 18, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'r' }, .modifier = KeyModifier.control() } } },
+        .{ 19, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 's' }, .modifier = KeyModifier.control() } } },
+        .{ 20, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 't' }, .modifier = KeyModifier.control() } } },
+        .{ 21, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'u' }, .modifier = KeyModifier.control() } } },
+        .{ 22, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'v' }, .modifier = KeyModifier.control() } } },
+        .{ 23, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'w' }, .modifier = KeyModifier.control() } } },
+        .{ 24, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'x' }, .modifier = KeyModifier.control() } } },
+        .{ 25, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'y' }, .modifier = KeyModifier.control() } } },
+        .{ 26, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 'z' }, .modifier = KeyModifier.control() } } },
+        .{ 27, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Esc, .modifier = KeyModifier{} } } },
+        .{ 28, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = '\\' }, .modifier = KeyModifier.control() } } },
+        .{ 29, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = ']' }, .modifier = KeyModifier.control() } } },
+        .{ 30, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = '~' }, .modifier = KeyModifier.control() } } },
+        .{ 31, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = '?' }, .modifier = KeyModifier.control() } } },
     };
 
     inline for (codes) |code| {
@@ -710,7 +730,7 @@ test "parse c0 codes to standard representation" {
 
 test "parse Extended Keyboard Events" {
     const result = try parseEvent("\x1B[57428u", false);
-    try testing.expect(std.meta.eql(KeyEvent{ .code = KeyCode{ .Media = .Play }, .modifier = KeyModifier{} }, result.?));
+    try testing.expect(std.meta.eql(ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Media = .Play }, .modifier = KeyModifier{} } }, result.?));
 }
 
 test "EventReader.next() works how I expect" {
@@ -722,9 +742,9 @@ test "EventReader.next() works how I expect" {
     }
     var reader = EventReader{ .raw_buffer = rb };
     const event = reader.next(allocator, false);
-    try testing.expect(std.meta.eql(event.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{} }));
+    try testing.expect(std.meta.eql(event.?, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{} } }));
     const event2 = reader.next(allocator, false);
-    try testing.expect(std.meta.eql(event2.?, KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{ .shift = true } }));
+    try testing.expect(std.meta.eql(event2.?, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{ .shift = true } } }));
 }
 
 test "Legacy Codes do not report `~`" {
@@ -736,7 +756,7 @@ test "Legacy Codes do not report `~`" {
     }
     var reader = EventReader{ .raw_buffer = rb };
     const event = reader.next(allocator, false);
-    const expected = KeyEvent{ .code = KeyCode{ .F = 5 }, .modifier = KeyModifier{ .shift = true } };
+    const expected = ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .F = 5 }, .modifier = KeyModifier{ .shift = true } } };
     try testing.expectEqualDeep(expected, event.?);
     const event2 = reader.next(allocator, false);
     try testing.expect(null == event2);

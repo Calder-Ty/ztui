@@ -10,6 +10,7 @@ const event_queue = @import("event_queue.zig");
 const testing = std.testing;
 const io = std.io;
 const fs = std.fs;
+const Mutex = std.Thread.Mutex;
 const AlternateKeyCodes = keycodes.AlternateKeyCodes;
 const KeyEvent = keycodes.KeyEvent;
 const KeyCode = keycodes.KeyCode;
@@ -19,6 +20,22 @@ const ProgressiveEnhancements = @import("kkp_enahancements.zig").ProgressiveEnha
 const CSI = "\x1B[";
 const READER_BUF_SIZE = 1024;
 const ESC = '\x1B';
+
+const InternalReaderMutex = struct {
+    mutex: Mutex = Mutex{},
+    _inner: EventReader = EventReader.init(),
+
+    inline fn lock(self: *InternalReaderMutex) *EventReader {
+        self.mutex.lock();
+        return &self._inner;
+    }
+
+    inline fn unlock(self: *InternalReaderMutex) void {
+        self.mutex.unlock();
+    }
+};
+
+const INTERNAL_READER_MUTEX = InternalReaderMutex{};
 
 const ReaderEventTag = enum {
     key_event,
@@ -33,11 +50,21 @@ const ReaderEvent = union(ReaderEventTag) {
 };
 
 /// Queries terminal to find support for progressive enhancements
-pub fn detectProgressivEnhancementSupport() !void {
+pub fn detectProgressivEnhancementSupport(allocator: std.mem.Allocator) !bool {
     // KKP says to use the query for current flags, and then
     // send a query for the Primary Device Attribute.
+    const reader = INTERNAL_READER_MUTEX.lock();
+    defer INTERNAL_READER_MUTEX.unlock();
     const query = "\x1B[?u\x1B[c";
-    _ = query;
+    const stdout = std.io.getStdOut();
+    try stdout.write(query);
+    const response = reader.next(allocator, false);
+    if (response) |res| {
+        switch (res) {
+            .progressive_enhancement => return true,
+            else => false,
+        }
+    }
 }
 
 /// Push the Progressive enhancements onto the stack. Should be done at the end of the program
@@ -64,7 +91,7 @@ pub fn popProgressiveEnhancements() !void {
 }
 
 /// Read Input and generate an Event stream
-pub const EventReader = struct {
+const EventReader = struct {
     raw_buffer: event_queue.RingBuffer(u8, READER_BUF_SIZE),
 
     pub fn init() EventReader {
@@ -293,10 +320,6 @@ fn isMember(value: u8, comptime group: []const u8) bool {
     }
     return false;
 }
-
-// fn parseProgressivEnhancements(buff: []const u8) !? {
-// kkp
-// }
 
 // Parses the Legacy Characters form CSI
 fn parseLegacyCSI(buff: []const u8) !?KeyEvent {

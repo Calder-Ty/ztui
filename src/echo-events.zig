@@ -11,11 +11,10 @@ pub fn main() !void {
     defer event_reader.popProgressiveEnhancements() catch {}; // UH-OH
     const allocator = gpa.allocator();
     for (0..10) |_| {
-        var reader = event_reader.EventReader.init();
-        if (try reader.poll(allocator)) {
-            while (reader.next(allocator, true)) |event| {
-                std.debug.print("Event: {?}\n", .{event});
-            }
+        var events = try event_reader.read(allocator);
+        defer events.deinit();
+        for (events.items) |event| {
+            std.debug.print("Event: {?}\n", .{event});
         }
     }
 }

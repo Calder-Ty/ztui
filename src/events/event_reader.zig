@@ -15,7 +15,7 @@ const AlternateKeyCodes = keycodes.AlternateKeyCodes;
 const KeyEvent = keycodes.KeyEvent;
 const KeyCode = keycodes.KeyCode;
 const KeyModifier = keycodes.KeyModifier;
-const ProgressiveEnhancements = @import("kkp_enahancements.zig").ProgressiveEnhancements;
+pub const ProgressiveEnhancements = @import("kkp_enahancements.zig").ProgressiveEnhancements;
 
 const CSI = "\x1B[";
 const READER_BUF_SIZE = 1024;
@@ -35,7 +35,7 @@ const InternalReaderMutex = struct {
     }
 };
 
-const INTERNAL_READER_MUTEX = InternalReaderMutex{};
+var INTERNAL_READER_MUTEX = InternalReaderMutex{};
 
 const ReaderEventTag = enum {
     key_event,
@@ -49,6 +49,23 @@ const ReaderEvent = union(ReaderEventTag) {
     progressive_enhancement: ProgressiveEnhancements,
 };
 
+/// Reads from stdin and returns keyevents if there are any
+/// Returns an ArrayList of KeyEvents. It is responsibility of
+/// caller to free the list;
+pub fn read(allocator: std.mem.Allocator) !std.ArrayList(KeyEvent) {
+    const reader = INTERNAL_READER_MUTEX.lock();
+    defer INTERNAL_READER_MUTEX.unlock();
+    _ = try reader.poll(allocator);
+    var list = std.ArrayList(KeyEvent).init(allocator);
+    while (reader.next(allocator, true)) |event| {
+        switch (event) {
+            .key_event => |ke| try list.append(ke),
+            else => {},
+        }
+    }
+    return list;
+}
+
 /// Queries terminal to find support for progressive enhancements
 pub fn detectProgressivEnhancementSupport(allocator: std.mem.Allocator) !bool {
     // KKP says to use the query for current flags, and then
@@ -57,14 +74,17 @@ pub fn detectProgressivEnhancementSupport(allocator: std.mem.Allocator) !bool {
     defer INTERNAL_READER_MUTEX.unlock();
     const query = "\x1B[?u\x1B[c";
     const stdout = std.io.getStdOut();
-    try stdout.write(query);
-    const response = reader.next(allocator, false);
+    _ = try stdout.write(query);
+    const response = reader.*.next(allocator, false);
     if (response) |res| {
         switch (res) {
             .progressive_enhancement => return true,
-            else => false,
+            else => return false,
         }
     }
+    // FIXME: THis isn't right, This function needs be fallible, and just try to check in case
+    // We havn't gotten a response
+    return false;
 }
 
 /// Push the Progressive enhancements onto the stack. Should be done at the end of the program

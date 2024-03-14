@@ -79,15 +79,10 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    echo.linkLibC();
     echo.addModule("ztui", ztui_mod);
 
-    const build_echo = b.addRunArtifact(echo);
-    build_echo.step.dependOn(b.getInstallStep());
-
-    if (b.args) |args| {
-        build_echo.addArgs(args);
-    }
-
-    const run_echo = b.step("echo", "run echo example");
-    run_echo.dependOn(&build_echo.step);
+    const build_echo = b.step("echo", "build echo example");
+    build_echo.dependOn(&echo.step);
+    b.installArtifact(echo);
 }

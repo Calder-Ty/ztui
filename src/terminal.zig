@@ -27,7 +27,11 @@ var orig_termios_mutex = OrigTermiosMutex{};
 
 /// Put the Terminal into "Raw" mode where key input isn't sent to Screen
 /// and line breaks aren't handled. See crosterm-rs and `man termios` for more info
-pub fn enableRawMode(self: *Terminal) !void {
+pub fn enableRawMode() !void {
+    const fh = try fs.openFileAbsolute("/dev/tty", .{
+        .mode = .read_write,
+        .allow_ctty = true,
+    });
     const orig_termios = orig_termios_mutex.lock();
     defer orig_termios_mutex.unlock();
     if (orig_termios.*) |_| {
@@ -35,11 +39,11 @@ pub fn enableRawMode(self: *Terminal) !void {
     }
 
     var ios: c.termios = undefined;
-    try wrapAsErrorUnion(c.tcgetattr(self.fh.handle, &ios), TerminalErrors.GetTermiosAttrError);
+    try wrapAsErrorUnion(c.tcgetattr(fh.handle, &ios), TerminalErrors.GetTermiosAttrError);
     const orig = ios;
 
     c.cfmakeraw(&ios);
-    try wrapAsErrorUnion(c.tcsetattr(self.fh.handle, c.TCSANOW, &ios), TerminalErrors.SetTermiosAttrError);
+    try wrapAsErrorUnion(c.tcsetattr(fh.handle, c.TCSANOW, &ios), TerminalErrors.SetTermiosAttrError);
 
     // Set the orig_termios if needed
     orig_termios.* = orig;
@@ -47,11 +51,15 @@ pub fn enableRawMode(self: *Terminal) !void {
 
 /// Release Terminal from "Raw" mode. See `man termios` for more information on
 /// RawMode
-pub fn disableRawMode(self: *const Terminal) !void {
+pub fn disableRawMode() !void {
+    const fh = try fs.openFileAbsolute("/dev/tty", .{
+        .mode = .read_write,
+        .allow_ctty = true,
+    });
     const orig_termios = orig_termios_mutex.lock();
     defer orig_termios_mutex.unlock();
     if (orig_termios.*) |orig_ios| {
-        try wrapAsErrorUnion(c.tcsetattr(self.fh.handle, c.TCSANOW, &orig_ios), TerminalErrors.SetTermiosAttrError);
+        try wrapAsErrorUnion(c.tcsetattr(fh.handle, c.TCSANOW, &orig_ios), TerminalErrors.SetTermiosAttrError);
     }
 }
 

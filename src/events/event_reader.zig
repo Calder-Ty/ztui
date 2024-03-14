@@ -96,7 +96,8 @@ pub fn pushProgressiveEnhancements(flags: ProgressiveEnhancements) !void {
     // (stored in 1 byte), so we can limit this buffer to 2 digits
     var flags_buf = [_]u8{ 0, 0 };
     const flags_fmt = try std.fmt.bufPrint(&flags_buf, "{d}", .{@as(u8, @bitCast(flags))});
-    // \x1B, [, >, \d, _, u (at most 6 bytes)
+
+    // \x1B, [, >, \d, (\d), u (at most 6 bytes)
     var outbuf = [_]u8{ 0, 0, 0, 0, 0, 0 };
     const out_fmt = try std.fmt.bufPrint(&outbuf, "\x1b[>{s}u", .{flags_fmt});
     _ = try stdout.write(out_fmt);

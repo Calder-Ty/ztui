@@ -266,8 +266,11 @@ fn handleCSI(buff: []const u8) !?ReaderEvent {
             'F' => KeyEvent{ .code = KeyCode.End, .modifier = KeyModifier{} },
             else => return null,
         };
-    } else if (buff[3] == '?') {
-        // event = try parseProgressivEnhancements(buff);
+    } else if (buff[2] == '?') {
+        const enhancement = try parseProgressivEnhancements(buff);
+        if (enhancement) |e| {
+            return ReaderEvent{ .progressive_enhancement = e };
+        }
     } else if (isMember(buff[buff.len - 1], "~ABCDEFHPQS")) {
         event = try parseLegacyCSI(buff);
     } else if (buff[buff.len - 1] == 'u') {
@@ -371,6 +374,13 @@ fn parseLegacyCSI(buff: []const u8) !?KeyEvent {
         };
     }
     return KeyEvent{ .code = code, .modifier = modifier };
+}
+
+fn parseProgressivEnhancements(buff: []const u8) !?ProgressiveEnhancements {
+    if (buff[buff.len - 1] == 0) {
+        return null;
+    }
+    return try ProgressiveEnhancements.from_str(buff[3 .. buff.len - 1]);
 }
 
 fn parseKKPCSI(buff: []const u8) !?KeyEvent {
@@ -760,4 +770,13 @@ test "Legacy Codes do not report `~`" {
     try testing.expectEqualDeep(expected, event.?);
     const event2 = reader.next(allocator, false);
     try testing.expect(null == event2);
+}
+
+test "Progressive Enhancements supported by reader" {
+    const result = try parseEvent("\x1B[?8u", false);
+    try testing.expectEqualDeep(ReaderEvent{
+        .progressive_enhancement = ProgressiveEnhancements{
+            .report_all_keys_as_escapecodes = true,
+        },
+    }, result.?);
 }

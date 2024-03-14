@@ -1,3 +1,5 @@
+const std = @import("std");
+
 /// Value to push on to stack to request Progressive enhancements of
 /// keyboard protocol, from simply legacy to adding more KKP features.
 ///
@@ -18,4 +20,11 @@ pub const ProgressiveEnhancements = packed struct(u8) {
     // We reserve 4 bits as a placeholder for it (and remaining 3 bits).
     // report_associated_text: bool,
     _reserved: u4 = 0,
+
+    pub fn from_str(str: []const u8) !ProgressiveEnhancements {
+        const val = std.fmt.parseInt(u8, str, 10) catch {
+            return error.InvalidProgressiveEnhancementValue;
+        };
+        return @bitCast(val);
+    }
 };

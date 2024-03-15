@@ -35,7 +35,7 @@ const InternalReaderMutex = struct {
     }
 };
 
-var INTERNAL_READER_MUTEX = InternalReaderMutex{};
+var INTERNAL_READER_GUARD = InternalReaderMutex{};
 
 const ReaderEventTag = enum {
     key_event,
@@ -53,8 +53,8 @@ const ReaderEvent = union(ReaderEventTag) {
 /// Returns an ArrayList of KeyEvents. It is responsibility of
 /// caller to free the list;
 pub fn read(allocator: std.mem.Allocator) !std.ArrayList(KeyEvent) {
-    const reader = INTERNAL_READER_MUTEX.lock();
-    defer INTERNAL_READER_MUTEX.unlock();
+    const reader = INTERNAL_READER_GUARD.lock();
+    defer INTERNAL_READER_GUARD.unlock();
     _ = try reader.poll(allocator);
     var list = std.ArrayList(KeyEvent).init(allocator);
     while (reader.next(allocator, true)) |event| {
@@ -70,8 +70,8 @@ pub fn read(allocator: std.mem.Allocator) !std.ArrayList(KeyEvent) {
 pub fn detectProgressivEnhancementSupport(allocator: std.mem.Allocator) !bool {
     // KKP says to use the query for current flags, and then
     // send a query for the Primary Device Attribute.
-    const reader = INTERNAL_READER_MUTEX.lock();
-    defer INTERNAL_READER_MUTEX.unlock();
+    const reader = INTERNAL_READER_GUARD.lock();
+    defer INTERNAL_READER_GUARD.unlock();
     const query = "\x1B[?u\x1B[c";
     const stdout = std.io.getStdOut();
     _ = try stdout.write(query);

@@ -48,7 +48,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_main_tests.step);
 
     // Create as a module for use
-    const ztui_mod = b.createModule(.{ .source_file = .{
+    _ = b.createModule(.{ .root_source_file = .{
         .path = "./src/main.zig",
     } });
 
@@ -60,7 +60,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.linkLibC();
-    exe.addModule("ztui", ztui_mod);
 
     const build_example = b.addRunArtifact(exe);
     build_example.step.dependOn(b.getInstallStep());
@@ -80,7 +79,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     echo.linkLibC();
-    echo.addModule("ztui", ztui_mod);
 
     const build_echo = b.step("echo", "build echo example");
     build_echo.dependOn(&echo.step);

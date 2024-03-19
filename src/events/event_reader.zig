@@ -40,13 +40,17 @@ var INTERNAL_READER_GUARD = InternalReaderMutex{};
 const ReaderEventTag = enum {
     key_event,
     progressive_enhancement,
+    primary_device_attribute,
 };
+
+const PrimaryDeviceAttribute = struct {};
 
 /// Internal ReaderEvent so that we can use one reader to parse differnt kinds
 /// of events. Generally only KeyEvents should be reported to the user.
 const ReaderEvent = union(ReaderEventTag) {
     key_event: KeyEvent,
     progressive_enhancement: ProgressiveEnhancements,
+    primary_device_attribute: PrimaryDeviceAttribute,
 };
 
 /// Reads from stdin and returns keyevents if there are any
@@ -73,17 +77,30 @@ pub fn detectProgressivEnhancementSupport(allocator: std.mem.Allocator) !bool {
     const reader = INTERNAL_READER_GUARD.lock();
     defer INTERNAL_READER_GUARD.unlock();
     const query = "\x1B[?u\x1B[c";
-    const stdout = std.io.getStdOut();
-    _ = try stdout.write(query);
-    const response = reader.*.next(allocator, false);
-    if (response) |res| {
-        switch (res) {
-            .progressive_enhancement => return true,
-            else => return false,
+    const fh = try fs.openFileAbsolute("/dev/tty", .{
+        .mode = .read_write,
+        .allow_ctty = true,
+    });
+    _ = try fh.write(query);
+    _ = try reader.poll(allocator);
+    while (reader.*.next(allocator, false)) |response| {
+        std.debug.print("{?}", .{response});
+        switch (response) {
+            .progressive_enhancement => {
+                while (reader.*.next(allocator, false)) |r| {
+                    switch (r) {
+                        .primary_device_attribute => break,
+                        else => {},
+                    }
+                }
+                return true;
+            },
+            .primary_device_attribute => return false,
+            else => {},
         }
+        // FIXME: THis isn't right, This function needs be fallible, and just try to check in case
+        // We havn't gotten a response
     }
-    // FIXME: THis isn't right, This function needs be fallible, and just try to check in case
-    // We havn't gotten a response
     return false;
 }
 
@@ -315,10 +332,8 @@ fn handleCSI(buff: []const u8) !?ReaderEvent {
             else => return null,
         };
     } else if (buff[2] == '?') {
-        const enhancement = try parseProgressivEnhancements(buff);
-        if (enhancement) |e| {
-            return ReaderEvent{ .progressive_enhancement = e };
-        }
+        const enhancement = try parseTerminalQueryResponses(buff);
+        return enhancement;
     } else if (isMember(buff[buff.len - 1], "~ABCDEFHPQS")) {
         event = try parseLegacyCSI(buff);
     } else if (buff[buff.len - 1] == 'u') {
@@ -420,11 +435,20 @@ fn parseLegacyCSI(buff: []const u8) !?KeyEvent {
     return KeyEvent{ .code = code, .modifier = modifier };
 }
 
-fn parseProgressivEnhancements(buff: []const u8) !?ProgressiveEnhancements {
+fn parseTerminalQueryResponses(buff: []const u8) !?ReaderEvent {
     if (buff[buff.len - 1] == 0) {
         return null;
     }
-    return try ProgressiveEnhancements.from_str(buff[3 .. buff.len - 1]);
+    return switch (buff[buff.len - 1]) {
+        'c' => out: {
+            break :out ReaderEvent{ .primary_device_attribute = .{} };
+        },
+        'u' => out: {
+            const inner = try ProgressiveEnhancements.from_str(buff[3 .. buff.len - 1]);
+            break :out ReaderEvent{ .progressive_enhancement = inner };
+        },
+        else => null,
+    };
 }
 
 fn parseKKPCSI(buff: []const u8) !?KeyEvent {

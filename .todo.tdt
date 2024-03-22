@@ -1,3 +1,5 @@
+2024-03-19 setup benchmarking for KKP event reading (For fun!) @KKP +Testing
+2024-03-19 Setup full testing for KKP @KKP +Testing
 2023-11-06 Capture Mouse Events @Events
-2023-12-01
+2023-12-01 Keyaboard handling events (Kitty Keyboard Protocol) @KKP
 x 2023-11-06 Put Terminal into "Raw Mode" (and restore when destroyed) @TerminalSetup

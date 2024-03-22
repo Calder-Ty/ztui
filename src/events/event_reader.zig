@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const keycodes = @import("keyevents.zig");
+pub const keycodes = @import("keyevents.zig");
 const event_queue = @import("event_queue.zig");
 const testing = std.testing;
 const io = std.io;

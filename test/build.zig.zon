@@ -1,0 +1,12 @@
+.{
+    .name = "int-tests",
+    .version = "0.1.0",
+    .dependencies = .{
+        .ztui = .{
+            .path = "../src",
+        },
+    },
+    .paths = .{
+        "",
+    },
+}

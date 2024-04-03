@@ -16,11 +16,15 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Integration tests
-    const integration_tests = b.addTest(.{
+    const integration_tests = b.addExecutable(.{
+        .name = "ztui-integration-tests",
         .root_source_file = .{ .path = "kkp_tests.zig" },
         .target = target,
         .optimize = optimize,
     });
+
+    integration_tests.linkLibC();
+    b.installArtifact(integration_tests);
 
     const ztui_dep = b.dependency("ztui", .{});
     integration_tests.root_module.addImport("ztui", ztui_dep.module("ztui"));

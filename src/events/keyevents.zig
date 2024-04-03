@@ -1,5 +1,6 @@
 //! Handle Keyboard Events
 //! Much inspiration taken from Crosterm-rs
+const std = @import("std");
 
 /// KeyAction
 pub const KeyAction = enum(u2) {
@@ -51,6 +52,19 @@ pub const KeyModifier = packed struct(u8) {
     pub fn num_lock() KeyModifier {
         return KeyModifier{ .num_lock = true };
     }
+
+    pub fn format(value: KeyModifier, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = options;
+        _ = fmt;
+        if (value.shift) try writer.print("Shift ", .{});
+        if (value.alt) try writer.print("Alt ", .{});
+        if (value.control) try writer.print("Ctrl ", .{});
+        if (value.hyper) try writer.print("Hyper ", .{});
+        if (value.super) try writer.print("Super ", .{});
+        if (value.meta) try writer.print("Meta ", .{});
+        if (value.caps_lock) try writer.print("CapsLock ", .{});
+        if (value.num_lock) try writer.print("NumLock", .{});
+    }
 };
 
 pub const KeyEvent = struct {
@@ -61,6 +75,15 @@ pub const KeyEvent = struct {
     /// actions are only reported if progressive enhancements have been requested
     action: ?KeyAction = null,
     alternate: AlternateKeyCodes = AlternateKeyCodes{},
+
+    pub fn format(value: KeyEvent, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = options;
+        _ = fmt;
+        try writer.print("Code: {?}\n", .{value.code});
+        try writer.print("\tModifiers: {?}\n", .{value.modifier});
+        if (value.action) |action| try writer.print("\tAction: {?}\n", .{action}) else try writer.print("\tAction: press\n", .{});
+        try writer.print("\tAlternates: {?}\n", .{value.alternate});
+    }
 };
 
 pub const AlternateKeyCodes = struct {
@@ -69,6 +92,13 @@ pub const AlternateKeyCodes = struct {
     shifted_key: ?KeyCode = null,
     /// The Base layout key, only reported if progressive enhancements have been requested
     base_layout_key: ?KeyCode = null,
+
+    pub fn format(value: AlternateKeyCodes, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = options;
+        _ = fmt;
+        if (value.shifted_key) |shifted| try writer.print("shifted: {?}", .{shifted});
+        if (value.base_layout_key) |base| try writer.print("base layout: {?}", .{base});
+    }
 };
 
 /// Straight up lifted from crosterm-rs
@@ -203,6 +233,27 @@ pub const KeyCode = union(KeyCodeTags) {
     /// [`KeyboardEnhancementFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES`] have been enabled with
     /// [`PushKeyboardEnhancementFlags`].
     Modifier: ModifierKeyCode,
+
+    pub fn format(value: KeyCode, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = options;
+        _ = fmt;
+
+        switch (value) {
+            .Char => |c| {
+                try writer.print("'{u}'", .{c});
+            },
+            .F => |f| {
+                try writer.print("F{d}", .{f});
+            },
+            .KpKey => |k| {
+                try writer.print("{d}", .{k});
+            },
+            inline else => |v| {
+                _ = v;
+                try std.fmt.format(writer, "{s}", .{@tagName(value)});
+            },
+        }
+    }
 };
 
 pub const MediaKeyCode = enum {

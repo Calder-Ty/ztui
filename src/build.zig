@@ -19,7 +19,7 @@ pub fn build(b: *std.Build) void {
         .name = "ztui",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/root.zig" },
+        .root_source_file = .{ .path = "root.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -34,7 +34,7 @@ pub fn build(b: *std.Build) void {
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
     const main_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/root.zig" },
+        .root_source_file = .{ .path = "root.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -48,15 +48,15 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_main_tests.step);
 
     // Create as a module for use
-    const ztui_mod = b.createModule(.{ .root_source_file = .{
-        .path = "./src/root.zig",
+    const ztui_mod = b.addModule("ztui", .{ .root_source_file = .{
+        .path = "root.zig",
     } });
     _ = ztui_mod;
 
     // Build Example for Demonstration and Testing
     const exe = b.addExecutable(.{
         .name = "ztui-example",
-        .root_source_file = .{ .path = "src/example.zig" },
+        .root_source_file = .{ .path = "example.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -75,7 +75,7 @@ pub fn build(b: *std.Build) void {
     // Build Example for Demonstration and Testing
     const echo = b.addExecutable(.{
         .name = "echo-events",
-        .root_source_file = .{ .path = "src/echo-events.zig" },
+        .root_source_file = .{ .path = "echo-events.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -84,14 +84,4 @@ pub fn build(b: *std.Build) void {
     const build_echo = b.step("echo", "build echo example");
     build_echo.dependOn(&echo.step);
     b.installArtifact(echo);
-
-    // Integration tests
-    const integration_tests = b.addTest(.{
-        .root_source_file = .{ .path = "./test/kkp_tests.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    const run_integration_tests = b.addRunArtifact(integration_tests);
-    const integration_test_step = b.step("int-tests", "Run integration tests");
-    integration_test_step.dependOn(&run_integration_tests.step);
 }

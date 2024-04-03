@@ -19,7 +19,7 @@ pub fn main() !void {
     }
     std.debug.print("Please type some input...\n", .{});
     for (0..10) |_| {
-        var events = try event_reader.read(allocator);
+        var events = try event_reader.read(allocator, 10000);
         defer events.deinit();
         for (events.items) |event| {
             std.debug.print("Event: {?}\n", .{event});

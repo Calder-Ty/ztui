@@ -329,6 +329,9 @@ fn handleCSI(buff: []const u8) !?ReaderEvent {
             'E' => KeyEvent{ .code = KeyCode.KeypadBegin, .modifier = KeyModifier{} },
             'H' => KeyEvent{ .code = KeyCode.Home, .modifier = KeyModifier{} },
             'F' => KeyEvent{ .code = KeyCode.End, .modifier = KeyModifier{} },
+            // CSI Z could reasonably be <S-Tab> or <C-S-Tab>
+            // If the user wants specificity they can set the progressive enhancements
+            'Z' => KeyEvent{ .code = KeyCode.Tab, .modifier = KeyModifier.shift() },
             else => return null,
         };
     } else if (buff[2] == '?') {
@@ -734,6 +737,12 @@ test "parse csi" {
     const input = "\x1B[1;2D";
     const res = try handleCSI(input[0..]);
     try testing.expect(std.meta.eql(res.?, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{ .shift = true } } }));
+}
+
+test "regression CSI Z" {
+    const input = "\x1B[Z";
+    const res = try handleCSI(input[0..]);
+    try testing.expect(std.meta.eql(res.?, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Tab, .modifier = KeyModifier{ .shift = true } } }));
 }
 
 test "parse csi F5" {

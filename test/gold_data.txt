@@ -1,0 +1,622 @@
+Ready to read
+Code: 'a'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'b'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'c'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'd'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'e'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'f'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'g'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'h'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'i'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'j'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'k'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'l'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'm'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'n'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'o'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'p'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'r'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 's'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 't'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'u'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'v'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'w'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'x'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'y'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'z'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'A'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'B'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'C'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'D'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'E'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'F'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'G'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'H'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'I'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'J'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'K'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'L'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'M'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'N'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'O'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'P'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'Q'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'R'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'S'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'T'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'U'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'V'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'W'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'X'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'Y'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'Z'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '0'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '1'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '2'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '3'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '4'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '5'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '6'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '7'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '8'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '9'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Esc
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: Insert
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Delete
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: PageUp
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: PageDown
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Up
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Up
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Down
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Down
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Right
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Right
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Left
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Left
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Home
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Home
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: End
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: End
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F1
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F2
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F3
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F4
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F5
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F6
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F7
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F8
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F9
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F10
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F11
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F12
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Menu
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Enter
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '<'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '>'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '!'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '@'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '#'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '$'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '%'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '^'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '&'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '*'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '('
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '('
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '_'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '-'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '+'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '='
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '['
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: ']'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '{'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '}'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '\'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '|'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: ':'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: ';'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '''
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '"'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '.'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: ','
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '?'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '`'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '~'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Enter
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Enter
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Enter
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: Enter
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Enter
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Enter
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: Enter
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: Esc
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: Esc
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: Esc
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: Esc
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: Esc
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: Backspace
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Backspace
+	Modifiers: Ctrl 
+	Action: press
+	Alternates: 
+Code: Backspace
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: Backspace
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Backspace
+	Modifiers: Ctrl 
+	Action: press
+	Alternates: 
+Code: Backspace
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: Backspace
+	Modifiers: Alt Ctrl 
+	Action: press
+	Alternates: 
+Code: Tab
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Tab
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Tab
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: Tab
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: Tab
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: Tab
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: ' '
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: ' '
+	Modifiers: Ctrl 
+	Action: press
+	Alternates: 
+Code: ' '
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: ' '
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: ' '
+	Modifiers: Ctrl 
+	Action: press
+	Alternates: 
+Code: ' '
+	Modifiers: Alt 
+	Action: press
+	Alternates: 
+Code: ' '
+	Modifiers: Alt Ctrl 
+	Action: press
+	Alternates: 
+Quitting

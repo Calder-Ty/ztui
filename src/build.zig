@@ -52,36 +52,4 @@ pub fn build(b: *std.Build) void {
         .path = "root.zig",
     } });
     _ = ztui_mod;
-
-    // Build Example for Demonstration and Testing
-    const exe = b.addExecutable(.{
-        .name = "ztui-example",
-        .root_source_file = .{ .path = "example.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    exe.linkLibC();
-
-    const build_example = b.addRunArtifact(exe);
-    build_example.step.dependOn(b.getInstallStep());
-
-    if (b.args) |args| {
-        build_example.addArgs(args);
-    }
-
-    const run_step = b.step("example", "run example");
-    run_step.dependOn(&build_example.step);
-
-    // Build Example for Demonstration and Testing
-    const echo = b.addExecutable(.{
-        .name = "echo-events",
-        .root_source_file = .{ .path = "echo-events.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    echo.linkLibC();
-
-    const build_echo = b.step("echo", "build echo example");
-    build_echo.dependOn(&echo.step);
-    b.installArtifact(echo);
 }

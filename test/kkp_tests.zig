@@ -18,8 +18,6 @@ pub fn main() !void {
     defer ztui.terminal.disableRawMode() catch {}; // UH-OH
 
     while (true) {
-        // This _IS_ reading stdin, because when I press keys
-        // it reads and then stops (because the producer thread is done)
         const res = try ztui.event_reader.read(allocator);
         defer res.deinit();
         for (res.items) |event| {

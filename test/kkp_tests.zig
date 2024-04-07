@@ -1,17 +1,6 @@
 const std = @import("std");
-const testing = std.testing;
 const ztui = @import("ztui");
 const keycodes = ztui.event_reader.keycodes;
-
-// Ensure that all keys are emitted as expected when
-// written to the output
-test "Full Table Suite" {
-    try testing.expect(true);
-}
-
-const TableRecord = struct { bytes: []const u8, result: ztui.event_reader.keycodes.KeyEvent };
-
-const TestTable = [_]TableRecord{};
 
 // Generate the table from a file
 // Loop over every key, event and build out a set of bytes that _should_ generate that event
@@ -24,6 +13,7 @@ pub fn main() !void {
         const status = gpa.deinit();
         if (status == .leak) @panic("Memory Leak Occured");
     }
+
     try ztui.terminal.enableRawMode();
     defer ztui.terminal.disableRawMode() catch {}; // UH-OH
 

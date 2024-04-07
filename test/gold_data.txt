@@ -1,4 +1,3 @@
-Ready to read
 Code: 'a'
 	Modifiers: 
 	Action: press
@@ -619,4 +618,447 @@ Code: ' '
 	Modifiers: Alt Ctrl 
 	Action: press
 	Alternates: 
-Quitting
+Code: Esc
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Enter
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Tab
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Backspace
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: CapsLock
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: ScrollLock
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: NumLock
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: PrintScreen
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Pause
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Menu
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: F13
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 48
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 46
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 47
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 42
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 45
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 43
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Enter
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '='
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: ','
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Left
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Right
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Up
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Down
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: PageUp
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: PageDown
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Home
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: End
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Insert
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Delete
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Play
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Pause
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: PlayPause
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '4'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '3'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: '1'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'u'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Stop
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: FastForward
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Rewind
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: TrackNext
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: TrackPrevious
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: Record
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: LowerVolume
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: RaiseVolume
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: MuteVolume
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: LeftShift
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: LeftControl
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: LeftAlt
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: LeftSuper
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: LeftHyper
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: LeftMeta
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: RightShift
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: RightControl
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: RightAlt
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: RightSuper
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: RightHyper
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: RightMeta
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: IsoLevel3Shift
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: IsoLevel5Shift
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'a'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'b'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'c'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'd'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'e'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'f'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'g'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'h'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'i'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'j'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'k'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'l'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'm'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'n'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'o'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'p'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'r'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 's'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 't'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'u'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'v'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'w'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'x'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'y'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'z'
+	Modifiers: Shift 
+	Action: press
+	Alternates: 
+Code: 'a'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'b'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'c'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'd'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'e'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'f'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'g'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'h'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'i'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'j'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'k'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'l'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'm'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'n'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'o'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'p'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'r'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 's'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 't'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'u'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'v'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'w'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'x'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'y'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'z'
+	Modifiers: Shift Alt 
+	Action: press
+	Alternates: 
+Code: 'q'
+	Modifiers: 
+	Action: press
+	Alternates: 

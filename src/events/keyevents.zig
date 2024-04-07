@@ -248,6 +248,12 @@ pub const KeyCode = union(KeyCodeTags) {
             .KpKey => |k| {
                 try writer.print("{d}", .{k});
             },
+            .Modifier => |m| {
+                try std.fmt.format(writer, "{s}", .{@tagName(m)});
+            },
+            .Media => |m| {
+                try std.fmt.format(writer, "{s}", .{@tagName(m)});
+            },
             inline else => |v| {
                 _ = v;
                 try std.fmt.format(writer, "{s}", .{@tagName(value)});

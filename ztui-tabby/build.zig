@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const lib = b.addStaticLibrary(.{
-        .name = "ztui",
+        .name = "tabby",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
         .root_source_file = .{ .path = "root.zig" },
@@ -48,7 +48,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_main_tests.step);
 
     // Create as a module for use
-    const ztui_mod = b.addModule("ztui", .{ .root_source_file = .{
+    const ztui_mod = b.addModule("tabby", .{ .root_source_file = .{
         .path = "root.zig",
     } });
     _ = ztui_mod;

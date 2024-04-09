@@ -26,8 +26,8 @@ pub fn build(b: *std.Build) void {
     integration_tests.linkLibC();
     b.installArtifact(integration_tests);
 
-    const ztui_dep = b.dependency("ztui", .{});
-    integration_tests.root_module.addImport("ztui", ztui_dep.module("ztui"));
+    const ztui_dep = b.dependency("tabby", .{});
+    integration_tests.root_module.addImport("tabby", ztui_dep.module("tabby"));
     const run_integration_tests = b.addRunArtifact(integration_tests);
 
     const integration_test_step = b.step("int-tests", "Run integration tests");

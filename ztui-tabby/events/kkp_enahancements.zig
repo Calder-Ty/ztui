@@ -21,10 +21,40 @@ pub const ProgressiveEnhancements = packed struct(u8) {
     // report_associated_text: bool,
     _reserved: u4 = 0,
 
+    /// Generate the Keyboard Enhancement bitfield from a string
+    /// representation of the field.
     pub fn from_str(str: []const u8) !ProgressiveEnhancements {
-        const val = std.fmt.parseInt(u8, str, 10) catch {
+        const val = std.fmt.parseInt(u8, str, 0) catch {
             return error.InvalidProgressiveEnhancementValue;
         };
         return @bitCast(val);
     }
 };
+
+test "from_str_dec" {
+    const expected: ProgressiveEnhancements = .{};
+    try std.testing.expectEqual(expected, ProgressiveEnhancements.from_str("0"));
+}
+
+test "from_str_hex" {
+    const expected: ProgressiveEnhancements = .{};
+    try std.testing.expectEqual(expected, ProgressiveEnhancements.from_str("0x0"));
+}
+
+test "from_str_octal" {
+    const expected: ProgressiveEnhancements = .{};
+    try std.testing.expectEqual(expected, ProgressiveEnhancements.from_str("0o0"));
+}
+
+test "from_str_binary" {
+    const expected: ProgressiveEnhancements = .{};
+    try std.testing.expectEqual(expected, ProgressiveEnhancements.from_str("0b0"));
+}
+
+test "from_str_binary2" {
+    const expected: ProgressiveEnhancements = .{
+        .disambiguate_escape_codes = true,
+        .report_alternate_keys = true,
+    };
+    try std.testing.expectEqual(expected, ProgressiveEnhancements.from_str("0b101"));
+}

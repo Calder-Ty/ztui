@@ -1,4 +1,4 @@
-//! Start a Terminal for drawing
+//! Provides utilities for managing the terminal, such as putting it into "Raw Mode"
 //!
 const std = @import("std");
 const fs = std.fs;
@@ -26,7 +26,7 @@ const OrigTermiosMutex = struct {
 var orig_termios_mutex = OrigTermiosMutex{};
 
 /// Put the Terminal into "Raw" mode where key input isn't sent to Screen
-/// and line breaks aren't handled. See crosterm-rs and `man termios` for more info
+/// and line breaks aren't handled. See `man termios` for more info
 pub fn enableRawMode() !void {
     const fh = try fs.openFileAbsolute("/dev/tty", .{
         .mode = .read_write,
@@ -63,6 +63,7 @@ pub fn disableRawMode() !void {
     }
 }
 
+/// Sends sequence of commands to terminal to put it into an alternate screen
 pub fn altScreen() !void {
     const fh = try fs.openFileAbsolute("/dev/tty", .{
         .mode = .read_write,
@@ -71,6 +72,8 @@ pub fn altScreen() !void {
     _ = try fh.write("\x1B[?1049h");
 }
 
+/// Sends sequence of commands to terminal to pop the alternate screen and return
+/// to the original
 pub fn origScreen() void {
     const fh = try fs.openFileAbsolute("/dev/tty", .{
         .mode = .read_write,

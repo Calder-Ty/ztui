@@ -10,6 +10,7 @@ const event_queue = @import("event_queue.zig");
 const testing = std.testing;
 const io = std.io;
 const fs = std.fs;
+
 const Mutex = std.Thread.Mutex;
 const AlternateKeyCodes = keycodes.AlternateKeyCodes;
 const KeyEvent = keycodes.KeyEvent;
@@ -53,9 +54,8 @@ const ReaderEvent = union(ReaderEventTag) {
     primary_device_attribute: PrimaryDeviceAttribute,
 };
 
-/// Reads from stdin and returns keyevents if there are any
-/// Returns an ArrayList of KeyEvents. It is responsibility of
-/// caller to free the list;
+/// Reads from stdin and returns an ArrayList of KeyEvents. It is
+/// responsibility of caller to free the list;
 pub fn read(allocator: std.mem.Allocator) !std.ArrayList(KeyEvent) {
     const reader = INTERNAL_READER_GUARD.lock();
     defer INTERNAL_READER_GUARD.unlock();

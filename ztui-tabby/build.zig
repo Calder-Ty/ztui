@@ -48,8 +48,11 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_main_tests.step);
 
     // Create as a module for use
-    const ztui_mod = b.addModule("tabby", .{ .root_source_file = .{
-        .path = "root.zig",
-    } });
+    const ztui_mod = b.addModule("tabby", .{
+        .root_source_file = .{
+            .path = "root.zig",
+        },
+        .link_libc = true,
+    });
     _ = ztui_mod;
 }

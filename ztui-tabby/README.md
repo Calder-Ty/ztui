@@ -16,10 +16,7 @@ const std = @import("std");
 const ztui = @import("ztui");
 const keycodes = ztui.event_reader.keycodes;
 
-// Generate the table from a file
-// Loop over every key, event and build out a set of bytes that _should_ generate that event
-//
-// generate by writing out the bytes of codes and then validating that we get stuff?
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -38,6 +35,7 @@ pub fn main() !void {
             std.debug.print("{any}", .{event});
             switch (event.code) {
                 .Char => |char| {
+                    // Quit on `q`
                     if (char == 113) {
                         return;
                     }

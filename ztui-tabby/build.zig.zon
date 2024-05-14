@@ -1,5 +1,5 @@
 .{
-    .name = "ztui",
+    .name = "tabby",
     .version = "0.1.0",
     .dependencies = .{},
     .paths = .{

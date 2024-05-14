@@ -1,6 +1,6 @@
 const std = @import("std");
-const ztui = @import("ztui");
-const keycodes = ztui.event_reader.keycodes;
+const tabby = @import("tabby");
+const keycodes = tabby.event_reader.keycodes;
 
 // Generate the table from a file
 // Loop over every key, event and build out a set of bytes that _should_ generate that event
@@ -14,11 +14,11 @@ pub fn main() !void {
         if (status == .leak) @panic("Memory Leak Occured");
     }
 
-    try ztui.terminal.enableRawMode();
-    defer ztui.terminal.disableRawMode() catch {}; // UH-OH
+    try tabby.terminal.enableRawMode();
+    defer tabby.terminal.disableRawMode() catch {}; // UH-OH
 
     while (true) {
-        const res = try ztui.event_reader.read(allocator);
+        const res = try tabby.event_reader.read(allocator);
         defer res.deinit();
         for (res.items) |event| {
             std.debug.print("{any}", .{event});

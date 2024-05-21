@@ -12,7 +12,6 @@
 
 Tabby is a Keyboard Event handling library, primarily for use in terminal user interfaces (TUI's).
 
-[latest release](https://github.com/Calder-Ty/ztui/releases/tag/tabby-0.1.0)
 
 ## Example
 ```zig
@@ -40,7 +39,7 @@ pub fn main() !void {
             switch (event.code) {
                 .Char => |char| {
                     // Quit on `q`
-                    if (char == 113) {
+                    if (char == 'q') {
                         return;
                     }
                 },

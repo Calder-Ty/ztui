@@ -15,6 +15,13 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
+    const egg = b.addExecutable(.{
+        .name = "display_example",
+        .root_source_file = .{ .path = "example.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
     const lib = b.addStaticLibrary(.{
         .name = "display",
         // In this case the main source file is merely a path, however, in more
@@ -40,12 +47,17 @@ pub fn build(b: *std.Build) void {
     });
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
+    const run_example = b.addRunArtifact(egg);
 
     // This creates a build step. It will be visible in the `zig build --help` menu,
     // and can be selected like this: `zig build test`
     // This will evaluate the `test` step rather than the default, which is "install".
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&run_unit_tests.step);
+
+    // Run Example
+    const example = b.step("example", "Run example program");
+    example.dependOn(&run_example.step);
 
     // Create as a module for use
     const ztui_mod = b.addModule("display", .{

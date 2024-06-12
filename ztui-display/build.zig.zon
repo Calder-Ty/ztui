@@ -1,0 +1,8 @@
+.{
+    .name = "display",
+    .version = "0.1.0",
+    .dependencies = .{ .tabby = .{ .path = "../ztui-tabby" } },
+    .paths = .{
+        "",
+    },
+}

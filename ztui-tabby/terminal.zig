@@ -3,7 +3,6 @@
 const std = @import("std");
 const fs = std.fs;
 const Mutex = std.Thread.Mutex;
-const Terminal = @This();
 
 const c = @cImport(@cInclude("termios.h"));
 
@@ -74,7 +73,7 @@ pub fn altScreen() !void {
 
 /// Sends sequence of commands to terminal to pop the alternate screen and return
 /// to the original
-pub fn origScreen() void {
+pub fn origScreen() !void {
     const fh = try fs.openFileAbsolute("/dev/tty", .{
         .mode = .read_write,
         .allow_ctty = true,

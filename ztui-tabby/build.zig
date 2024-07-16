@@ -19,7 +19,7 @@ pub fn build(b: *std.Build) void {
         .name = "tabby",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "root.zig" },
+        .root_source_file = .{ .src_path = .{ .owner = b, .sub_path = "root.zig" } },
         .target = target,
         .optimize = optimize,
     });
@@ -34,7 +34,7 @@ pub fn build(b: *std.Build) void {
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
     const main_tests = b.addTest(.{
-        .root_source_file = .{ .path = "root.zig" },
+        .root_source_file = .{ .src_path = .{ .owner = b, .sub_path = "root.zig" } },
         .target = target,
         .optimize = optimize,
     });
@@ -49,9 +49,7 @@ pub fn build(b: *std.Build) void {
 
     // Create as a module for use
     const ztui_mod = b.addModule("tabby", .{
-        .root_source_file = .{
-            .path = "root.zig",
-        },
+        .root_source_file = .{ .src_path = .{ .sub_path = "root.zig", .owner = b } },
         .link_libc = true,
     });
     _ = ztui_mod;

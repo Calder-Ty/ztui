@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
     // Integration tests
     const integration_tests = b.addExecutable(.{
         .name = "ztui-integration-tests",
-        .root_source_file = .{ .path = "kkp_tests.zig" },
+        .root_source_file = .{ .cwd_relative = "kkp_tests.zig" },
         .target = target,
         .optimize = optimize,
     });

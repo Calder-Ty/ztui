@@ -1058,6 +1058,14 @@ Code: 'z'
 	Modifiers: Shift Alt 
 	Action: press
 	Alternates: 
+Code: 'è'
+	Modifiers: 
+	Action: press
+	Alternates: 
+Code: 'è'
+	Modifiers: 
+	Action: press
+	Alternates: 
 Code: 'q'
 	Modifiers: 
 	Action: press

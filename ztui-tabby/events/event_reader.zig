@@ -656,30 +656,20 @@ fn handleSS3Code(buff: []const u8) !?ReaderEvent {
 }
 
 fn parseUtf8Char(buff: []const u8) !?u21 {
-    return std.unicode.utf8Decode(buff) catch {
-        const required_bytes: u8 = switch (buff[0]) {
-            // https://en.wikipedia.org/wiki/UTF-8#Description
-            0x00...0x7F => 1, // 0xxxxxxx
-            0xC0...0xDF => 2, // 110xxxxx 10xxxxxx
-            0xE0...0xEF => 3, // 1110xxxx 10xxxxxx 10xxxxxx
-            0xF0...0xF7 => 4, // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-            0x80...0xBF, 0xF8...0xFF => return error.UnparseableEvent,
-        };
-
-        if (required_bytes > 1 and buff.len > 1) {
-            for (buff[1..]) |byte| {
-                if (byte & ~@as(u8, 0b0011_1111) != 0b1000_0000) {
-                    return error.UnparseableEvent;
-                }
-            }
-        }
-
-        if (buff.len < required_bytes) {
-            return null;
-        } else {
-            return error.UnparseableEvent;
-        }
+    const required_bytes: u8 = switch (buff[0]) {
+        // https://en.wikipedia.org/wiki/UTF-8#Description
+        0x00...0x7F => 1, // 0xxxxxxx
+        0xC0...0xDF => 2, // 110xxxxx 10xxxxxx
+        0xE0...0xEF => 3, // 1110xxxx 10xxxxxx 10xxxxxx
+        0xF0...0xF7 => 4, // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+        0x80...0xBF, 0xF8...0xFF => return error.UnparseableEvent,
     };
+
+    if (buff.len < required_bytes) {
+        return null;
+    } else {
+        return try std.unicode.utf8Decode(buff[0..required_bytes]);
+    }
 }
 
 inline fn parseModifier(mod: u9) KeyModifier {
@@ -713,6 +703,22 @@ test "parse event '󱫎'" {
     const res2 = try parseEvent("󱫎", false);
     try testing.expect(std.meta.eql(res2.?, ReaderEvent{ .key_event = KeyEvent{
         .code = KeyCode{ .Char = '󱫎' },
+        .modifier = KeyModifier{},
+    } }));
+}
+
+test "parse event 'è'" {
+    const res2 = try parseEvent("\xc3\xa8", false);
+    try testing.expect(std.meta.eql(res2.?, ReaderEvent{ .key_event = KeyEvent{
+        .code = KeyCode{ .Char = 'è' },
+        .modifier = KeyModifier{},
+    } }));
+}
+
+test "parse event 'è' as unicode event" {
+    const res2 = try parseEvent("\x1B[\xc3\xa8u", false);
+    try testing.expect(std.meta.eql(res2.?, ReaderEvent{ .key_event = KeyEvent{
+        .code = KeyCode{ .Char = 'è' },
         .modifier = KeyModifier{},
     } }));
 }
@@ -832,6 +838,21 @@ test "EventReader.next() works how I expect" {
     try testing.expect(std.meta.eql(event.?, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{} } }));
     const event2 = reader.next(allocator, false);
     try testing.expect(std.meta.eql(event2.?, ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode.Left, .modifier = KeyModifier{ .shift = true } } }));
+}
+
+test "EventReader isn't Over Eager and reads UTF-8 as UTF-8" {
+    const allocator = std.testing.allocator;
+    const event_stream = "\xc3\xa8";
+    var rb = event_queue.RingBuffer(u8, READER_BUF_SIZE).init();
+    for (event_stream) |byte| {
+        try rb.push(byte);
+    }
+    var reader = EventReader{ .raw_buffer = rb };
+    const event = reader.next(allocator, false);
+    try testing.expectEqualDeep(
+        ReaderEvent{ .key_event = KeyEvent{ .code = KeyCode{ .Char = 232 }, .modifier = KeyModifier{} } },
+        event.?,
+    );
 }
 
 test "Legacy Codes do not report `~`" {

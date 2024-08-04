@@ -457,11 +457,6 @@ fn parseTerminalQueryResponses(buff: []const u8) !?ReaderEvent {
 fn parseKKPCSI(buff: []const u8) !?KeyEvent {
     // GENERAL: CSI unicode-key-code[[:alternate-key-codes] [; modifiers:event-type] ; [text-as-codepoints]] u
     // SPECIAL: CSI unicode-key-code u
-    if (buff[buff.len - 1] != 'u') {
-        // FIXME: How do we stop it from looping forever on the input hoping for more bytes?
-        // This is not something that can be parsed as a KKP CSI code
-        return null;
-    }
     var code: KeyCode = undefined;
     var modifier: KeyModifier = undefined;
     var codepoint: []const u8 = undefined;

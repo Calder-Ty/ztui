@@ -457,11 +457,6 @@ fn parseTerminalQueryResponses(buff: []const u8) !?ReaderEvent {
 fn parseKKPCSI(buff: []const u8) !?KeyEvent {
     // GENERAL: CSI unicode-key-code[[:alternate-key-codes] [; modifiers:event-type] ; [text-as-codepoints]] u
     // SPECIAL: CSI unicode-key-code u
-    if (buff[buff.len - 1] != 'u') {
-        // FIXME: How do we stop it from looping forever on the input hoping for more bytes?
-        // This is not something that can be parsed as a KKP CSI code
-        return null;
-    }
     var code: KeyCode = undefined;
     var modifier: KeyModifier = undefined;
     var codepoint: []const u8 = undefined;
@@ -659,10 +654,10 @@ fn parseUtf8Char(buff: []const u8) !?u21 {
     const required_bytes: u8 = switch (buff[0]) {
         // https://en.wikipedia.org/wiki/UTF-8#Description
         0x00...0x7F => 1, // 0xxxxxxx
-        0xC0...0xDF => 2, // 110xxxxx 10xxxxxx
+        0xC2...0xDF => 2, // 110xxxxx 10xxxxxx
         0xE0...0xEF => 3, // 1110xxxx 10xxxxxx 10xxxxxx
-        0xF0...0xF7 => 4, // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-        0x80...0xBF, 0xF8...0xFF => return error.UnparseableEvent,
+        0xF0...0xF4 => 4, // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+        0xC0, 0xC1, 0x80...0xBF, 0xF5...0xFF => return error.UnparseableEvent,
     };
 
     if (buff.len < required_bytes) {
